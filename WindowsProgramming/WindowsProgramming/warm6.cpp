@@ -41,6 +41,11 @@ void CalcNormal() {
 			resultStr.push_back('/');
 			resultStr.push_back(')');
 
+			if (numsC[i + 1] == 0) {
+				cout << endl << "ERROR: 0으로 나눌 수 없습니다!" << endl;
+				return;
+			}
+
 			numsC[i] = numsC[i] / numsC[i + 1];
 			numsC.erase(numsC.begin() + i + 1);
 			operatorsC.erase(operatorsC.begin() + i);
@@ -63,8 +68,6 @@ void CalcNormal() {
 			result -= numsC[i + 1];
 		}
 	}
-
-	cout << resultStr << endl;
 
 	cout << "Result: ";
 	int numsIndex = 0;
