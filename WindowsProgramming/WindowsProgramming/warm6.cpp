@@ -1,65 +1,105 @@
 #include <iostream>
 #include <vector>
+#include <string>
 using namespace std;
 
 vector<float> nums;
 vector<char> operators;
 
 void CalcNormal() {
-	vector<float> numsC;
-	vector<char> operatorsC;
+	string resultStr = "";
+	float result;
+	vector<float> numsC = vector<float>(nums);
+	vector<char> operatorsC = vector<char>(operators);
 
-	float result = 0;
-	bool isChecked = false;
-
-	for (int i = 0; i < 4; i++) {
-		if (operators[i] == '*' || operators[i] == '/') {
-			int j = 0;
-			for (; ; j++) {
-				if (!(operatorsC[j] == '*' || operatorsC[j] == '/'))
-					break;
-			}
-			operatorsC.insert(operatorsC.begin() + j, operators[i]);
-			if (!isChecked) {
-				numsC.insert(numsC.begin(), nums[i]);
-				numsC.insert(numsC.begin() + 1, nums[i + 1]);
-				isChecked = true;
+	int isPackaged = 0;
+	for (int i = 0; i < operatorsC.size(); i++) {
+		if (operatorsC[i] == '*') {
+			if (isPackaged > 0 || i == 0) {
+				resultStr.insert(resultStr.begin() + isPackaged, '(');
 			}
 			else {
-				numsC.insert(numsC.begin() + j + 1, nums[i + 1]);
+				resultStr.push_back('(');
 			}
+			resultStr.push_back('*');
+			resultStr.push_back(')');
+
+			numsC[i] = numsC[i] * numsC[i + 1];
+			numsC.erase(numsC.begin() + i + 1);
+			operatorsC.erase(operatorsC.begin() + i);
+
+			i--;
+			isPackaged++;
+		}
+		else if (operatorsC[i] == '/') {
+			if (isPackaged > 0 || i == 0) {
+				resultStr.insert(resultStr.begin() + isPackaged, '(');
+			}
+			else {
+				resultStr.push_back('(');
+			}
+			resultStr.push_back('/');
+			resultStr.push_back(')');
+
+			numsC[i] = numsC[i] / numsC[i + 1];
+			numsC.erase(numsC.begin() + i + 1);
+			operatorsC.erase(operatorsC.begin() + i);
+
+			i--;
+			isPackaged++;
 		}
 		else {
-			operatorsC.push_back(operators[i]);
-			if (!isChecked) {
-				numsC.push_back(nums[i]);
-			}
-			else {
-				numsC.push_back(nums[i + 1]);
-			}
+			resultStr.push_back(operatorsC[i]);
+			isPackaged = 0;
 		}
-	}
-	if (!isChecked) {
-		numsC.push_back(nums[4]);
 	}
 
 	result = numsC[0];
-	for (int i = 0; i < 4; i++) {
-		switch (operatorsC[i]) {
-		case '+':
+	for (int i = 0; i < operatorsC.size(); i++) {
+		if (operatorsC[i] == '+') {
 			result += numsC[i + 1];
-			break;
-		case '-':
+		}
+		else {
 			result -= numsC[i + 1];
-			break;
-		case '*':
-			result *= numsC[i + 1];
-			break;
-		case '/':
-			result /= numsC[i + 1];
-			break;
 		}
 	}
+
+	cout << resultStr << endl;
+
+	cout << "Result: ";
+	int numsIndex = 0;
+	bool isFrontEmpty = true;
+	for (int i = 0; i < resultStr.size(); i++) {
+		if (resultStr[i] != '(' && resultStr[i] != ')') {
+			if (numsIndex == 0 || isFrontEmpty) {
+				cout << to_string((int)nums[numsIndex++]);
+				cout << resultStr[i];
+				while (resultStr[++i] == '(') {
+					cout << resultStr[i];
+				}
+				i--;
+				cout << to_string((int)nums[numsIndex++]);
+				isFrontEmpty = false;
+			}
+			else if (i > 0 && i < resultStr.size() - 1) {
+				if (resultStr[i + 1] == '(') {
+					cout << resultStr[i];
+					isFrontEmpty = true;
+				}
+				else {
+					cout << resultStr[i];
+					cout << to_string((int)nums[numsIndex++]);
+				}
+			}
+			else {
+				cout << resultStr[i];
+				cout << to_string((int)nums[numsIndex++]);
+			}
+		}
+		else
+			cout << resultStr[i];
+	}
+	cout << " = " << result << endl;
 }
 
 void CalcFromFront() {
@@ -76,6 +116,10 @@ void CalcFromFront() {
 				result *= nums[i + 1];
 				break;
 			case '/':
+				if (nums[i + 1] == 0) {
+					cout << endl << "ERROR: 0으로 나눌 수 없습니다!" << endl;
+					return;
+				}
 				result /= nums[i + 1];
 				break;
 		}
@@ -109,6 +153,10 @@ void CalcFromBack() {
 			result *= nums[i];
 			break;
 		case '/':
+			if (nums[i + 1] == 0) {
+				cout << endl << "ERROR: 0으로 나눌 수 없습니다!" << endl;
+				return;
+			}
 			result = nums[i] / result;
 			break;
 		}
@@ -131,6 +179,8 @@ void CalcFromBack() {
 int main() {
 	bool loopFlag;
 	while (true) {
+		nums.clear();
+		operators.clear();
 		char input[100];
 		cout << "식 입력: ";
 		cin >> input;
@@ -155,6 +205,7 @@ int main() {
 		loopFlag = true;
 		while (loopFlag) {
 			char command;
+			cout << "명령어 입력: ";
 			cin >> command;
 			switch (command) {
 				case '1':
