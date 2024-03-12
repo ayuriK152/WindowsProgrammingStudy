@@ -12,6 +12,7 @@ void SetMatRandom() {
 	random_device rd;
 	mt19937 gen(rd());
 	uniform_int_distribution<int> dis(1, 50);
+	elements.clear();
 
 	for (int i = 0; i < 20; i++) {
 		int temp = dis(gen);
@@ -28,6 +29,7 @@ void SetMatRandom() {
 		elements.push_back(temp);
 		originMat[i / 5][i % 5] = temp;
 	}
+	copy(&originMat[0][0], &originMat[0][0] + 20, &commandedMat[0][0]);
 
 	cout << "행렬 생성:" << endl;
 	for (int i = 0; i < 20; i++) {
@@ -37,6 +39,18 @@ void SetMatRandom() {
 	}
 
 	sort(elements.begin(), elements.end());
+}
+
+void ResetChangedMat() {
+	copy(&originMat[0][0], &originMat[0][0] + 20, &commandedMat[0][0]);
+
+	cout << "Result:" << endl;
+	for (int i = 0; i < 20; i++) {
+		cout << commandedMat[i / 5][i % 5] << "\t";
+		if ((i + 1) % 5 == 0)
+			cout << endl;
+	}
+	isChanged = false;
 }
 
 void SortMatAscend() {
@@ -54,15 +68,7 @@ void SortMatAscend() {
 		isChanged = true;
 	}
 	else {
-		copy(&originMat[0][0], &originMat[0][0] + 20, &commandedMat[0][0]);
-
-		cout << "Result:" << endl;
-		for (int i = 0; i < 20; i++) {
-			cout << commandedMat[i / 5][i % 5] << "\t";
-			if ((i + 1) % 5 == 0)
-				cout << endl;
-		}
-		isChanged = false;
+		ResetChangedMat();
 	}
 }
 
@@ -81,15 +87,7 @@ void SortMatDescend() {
 		isChanged = true;
 	}
 	else {
-		copy(&originMat[0][0], &originMat[0][0] + 20, &commandedMat[0][0]);
-
-		cout << "Result:" << endl;
-		for (int i = 0; i < 20; i++) {
-			cout << commandedMat[i / 5][i % 5] << "\t";
-			if ((i + 1) % 5 == 0)
-				cout << endl;
-		}
-		isChanged = false;
+		ResetChangedMat();
 	}
 }
 
@@ -108,15 +106,7 @@ void ShowEvenElements() {
 		isChanged = true;
 	}
 	else {
-		copy(&originMat[0][0], &originMat[0][0] + 20, &commandedMat[0][0]);
-
-		cout << "Result:" << endl;
-		for (int i = 0; i < 20; i++) {
-			cout << commandedMat[i / 5][i % 5] << "\t";
-			if ((i + 1) % 5 == 0)
-				cout << endl;
-		}
-		isChanged = false;
+		ResetChangedMat();
 	}
 }
 
@@ -135,15 +125,7 @@ void ShowOddElements() {
 		isChanged = true;
 	}
 	else {
-		copy(&originMat[0][0], &originMat[0][0] + 20, &commandedMat[0][0]);
-
-		cout << "Result:" << endl;
-		for (int i = 0; i < 20; i++) {
-			cout << commandedMat[i / 5][i % 5] << "\t";
-			if ((i + 1) % 5 == 0)
-				cout << endl;
-		}
-		isChanged = false;
+		ResetChangedMat();
 	}
 }
 
@@ -162,15 +144,7 @@ void SumMaxElement() {
 		isChanged = true;
 	}
 	else {
-		copy(&originMat[0][0], &originMat[0][0] + 20, &commandedMat[0][0]);
-
-		cout << "Result:" << endl;
-		for (int i = 0; i < 20; i++) {
-			cout << commandedMat[i / 5][i % 5] << "\t";
-			if ((i + 1) % 5 == 0)
-				cout << endl;
-		}
-		isChanged = false;
+		ResetChangedMat();
 	}
 }
 
@@ -189,7 +163,20 @@ void SubMinElement() {
 		isChanged = true;
 	}
 	else {
-		copy(&originMat[0][0], &originMat[0][0] + 20, &commandedMat[0][0]);
+		ResetChangedMat();
+	}
+}
+
+void SumColumnElements() {
+	if (!isChanged) {
+		int tempSum = 0;
+		for (int i = 0; i < 20; i++) {
+			tempSum += originMat[i / 5][i % 5];
+			if ((i + 1) % 5 == 0) {
+				commandedMat[i / 5][0] = tempSum;
+				tempSum = 0;
+			}
+		}
 
 		cout << "Result:" << endl;
 		for (int i = 0; i < 20; i++) {
@@ -197,19 +184,77 @@ void SubMinElement() {
 			if ((i + 1) % 5 == 0)
 				cout << endl;
 		}
-		isChanged = false;
+		isChanged = true;
+	}
+	else {
+		ResetChangedMat();
 	}
 }
 
-void SumColumnElements() {
+void MulRowElements() {
+	if (!isChanged) {
+		int tempMul = 1;
+		for (int i = 0; i < 20; i++) {
+			tempMul *= originMat[i % 4][i / 4];
+			if ((i + 1) % 4 == 0) {
+				commandedMat[3][i / 4] = tempMul;
+				tempMul = 1;
+			}
+		}
 
+		cout << "Result:" << endl;
+		for (int i = 0; i < 20; i++) {
+			cout << commandedMat[i / 5][i % 5] << "\t";
+			if ((i + 1) % 5 == 0)
+				cout << endl;
+		}
+		isChanged = true;
+	}
+	else {
+		ResetChangedMat();
+	}
+}
+
+void ShuffleMat() {
+	vector<int> randomIndex;
+	random_device rd;
+	mt19937 gen(rd());
+	uniform_int_distribution<int> dis(0, 19);
+
+	for (int i = 0; i < 20; i++) {
+		originMat[i / 5][i % 5] = 0;
+	}
+
+	for (int i = 0; i < 20; i++) {
+		int index = dis(gen);
+		while (true) {
+			if (originMat[index / 5][index % 5] != 0) {
+				if (index == 19)
+					index = 0;
+				else
+					index++;
+			}
+			else {
+				originMat[index / 5][index % 5] = elements[i];
+				break;
+			}
+		}
+	}
+
+	cout << "Result:" << endl;
+	for (int i = 0; i < 20; i++) {
+		cout << originMat[i / 5][i % 5] << "\t";
+		if ((i + 1) % 5 == 0)
+			cout << endl;
+	}
 }
 
 int main() {
+	bool loopFlag = true;
 	while (true) {
 		SetMatRandom();
 
-		bool loopFlag = true;
+		loopFlag = true;
 		while (loopFlag) {
 			char command;
 			cout << endl << "명령어: ";
@@ -233,6 +278,15 @@ int main() {
 					break;
 				case 'n':
 					SubMinElement();
+					break;
+				case 'p':
+					SumColumnElements();
+					break;
+				case 'u':
+					MulRowElements();
+					break;
+				case 'r':
+					ShuffleMat();
 					break;
 				case 's':
 					loopFlag = false;
