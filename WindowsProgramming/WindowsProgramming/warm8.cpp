@@ -59,7 +59,7 @@ void SetBoard() {
 void DrawCurrentBoard() {
 	for (int i = 120; i >= 0; i--) {
 		if (playBoard[i % 11][i / 11] == -1) {
-			cout << "  ";
+			cout << "   ";
 		}
 		else if (playBoard[i % 11][i / 11] == 0) {
 			cout << "■ ";
@@ -76,107 +76,220 @@ void DrawCurrentBoard() {
 	}
 }
 
-void Move(bool isFirstPlayer) {
+bool CornerJudge(int x, int y) {
+	if ((x == 0 && (y == 0 || y == 10)) || x == 10 && (y == 0 || y == 10))
+		return true;
+	return false;
+}
+
+string ChangeMoveResultToString(int moveResult) {
+	switch (moveResult) {
+	case 1:
+		return "도!";
+	case 2:
+		return "개!!";
+	case 3:
+		return "걸!!!";
+	case 4:
+		return "윷!!!!";
+	case 5:
+		return "모!!!!!";
+	}
+}
+
+int Move(bool isFirstPlayer) {
 	int playerNum = isFirstPlayer ? 0 : 1;
 	int moveMount = randomDice(gen);
-	switch (moveMount) {
-		case 1:
-			cout << endl << "도!" << endl << endl;
-			break;
-		case 2:
-			cout << endl << "개!!" << endl << endl;
-			break;
-		case 3:
-			cout << endl << "걸!!!" << endl << endl;
-			break;
-		case 4:
-			cout << endl << "윷!!!!" << endl << endl;
-			break;
-		case 5:
-			cout << endl << "모!!!!!" << endl << endl;
-			break;
-	}
+	//이동 후 게임 결과. 0=이동만 함, 1=1번 플레이어 골, 2=2번 플레이어 골, 3=잡음, 1x~5x=도/개/걸/윷/모
+	int moveResult = 0 + moveMount * 10;
+	cout << ChangeMoveResultToString(moveResult / 10) << endl;
 	moveMount *= 2;
 
 	bool loopFlag = true;
 	bool keepGo = false;
+	bool diagonalMove = false;
 	while (loopFlag) {
-		char moveCmd;
-		cout << "움직일 방향 입력: ";
-		cin >> moveCmd;
-		switch (moveCmd) {
-			case 'w':
-				if ((players[playerNum].isInit) || (players[playerNum].x == 0 && players[playerNum].y > 0 && players[playerNum].y < 10)) {
-					int movable = 10 - players[playerNum].y;
-					playBoard[players[playerNum].x][players[playerNum].y] = 0;
-					if (movable >= moveMount) {
-						players[playerNum].y += moveMount;
-						moveMount = 0;
-					}
-					else {
-						players[playerNum].y += movable;
-						moveMount -= movable;
-					}
-					playBoard[players[playerNum].x][players[playerNum].y] = playerNum + 1;
+		if (!keepGo && (players[playerNum].y == 10 && (players[playerNum].x == 0 || players[playerNum].x == 10))) {
+			bool iscornerSelected = false;
+			char cornerSelect = ' ';
+			while (!iscornerSelected) {
+				cout << "대각선으로 이동 가능합니다! 대각선 이동하시겠습니까? (y / n): ";
+				cin >> cornerSelect;
+				switch (cornerSelect) {
+				case 'y':
+					diagonalMove = true;
+					iscornerSelected = true;
+					break;
+				case 'n':
+					iscornerSelected = true;
+					break;
+				default:
+					cout << "ERROR: 잘못된 입력" << endl;
+					break;
+				}
+			}
+		}
 
-					players[playerNum].isInit = false;
-					if (moveMount == 0)
-						loopFlag = false;
-					else {
-						cout << "여유 이동 횟수가 있습니다!" << endl;
-						keepGo = true;
-					}
+		keepGo = false;
+		//상하좌우 이동 로직
+		if ((players[playerNum].isInit) || (players[playerNum].x == 0 && players[playerNum].y > 0 && players[playerNum].y < 10 && players[playerNum].y % 2 == 0)) {
+			int movable = 10 - players[playerNum].y;
+
+			if (playBoard[players[playerNum].x][players[playerNum].y] == 3) {
+				playBoard[players[playerNum].x][players[playerNum].y] = 3 - playerNum - 1;
+			}
+			else {
+				playBoard[players[playerNum].x][players[playerNum].y] = 0;
+			}
+
+			if (movable >= moveMount) {
+				players[playerNum].y += moveMount;
+				moveMount = 0;
+			}
+			else {
+				players[playerNum].y += movable;
+				moveMount -= movable;
+			}
+		}
+		else if (players[playerNum].x == 10 && players[playerNum].y > 0 && players[playerNum].y % 2 == 0 && !diagonalMove) {
+			int movable = players[playerNum].y;
+
+			if (playBoard[players[playerNum].x][players[playerNum].y] == 3) {
+				playBoard[players[playerNum].x][players[playerNum].y] = 3 - playerNum - 1;
+			}
+			else {
+				playBoard[players[playerNum].x][players[playerNum].y] = 0;
+			}
+
+			if (movable >= moveMount) {
+				players[playerNum].y -= moveMount;
+				moveMount = 0;
+			}
+			else {
+				players[playerNum].y -= movable;
+				moveMount -= movable;
+			}
+		}
+		else if (players[playerNum].x < 10 && players[playerNum].y == 10 && players[playerNum].x % 2 == 0 && !diagonalMove) {
+			int movable = 10 - players[playerNum].x;
+
+			if (playBoard[players[playerNum].x][players[playerNum].y] == 3) {
+				playBoard[players[playerNum].x][players[playerNum].y] = 3 - playerNum - 1;
+			}
+			else {
+				playBoard[players[playerNum].x][players[playerNum].y] = 0;
+			}
+
+			if (movable >= moveMount) {
+				players[playerNum].x += moveMount;
+				moveMount = 0;
+			}
+			else {
+				players[playerNum].x += movable;
+				moveMount -= movable;
+			}
+		}
+		else if (players[playerNum].y == 0 && players[playerNum].x % 2 == 0 && !diagonalMove) {
+			int movable = players[playerNum].x;
+
+			if (playBoard[players[playerNum].x][players[playerNum].y] == 3) {
+				playBoard[players[playerNum].x][players[playerNum].y] = 3 - playerNum - 1;
+			}
+			else {
+				playBoard[players[playerNum].x][players[playerNum].y] = 0;
+			}
+
+			if (movable >= moveMount) {
+				players[playerNum].x -= moveMount;
+				moveMount = 0;
+			}
+			else {
+				playBoard[0][0] = playerNum + 1;
+				moveResult += playerNum + 1;
+				break;
+			}
+		}
+
+		// 대각선 이동 로직
+		else if (players[playerNum].x == players[playerNum].y) {
+			int movable = players[playerNum].x;
+
+			playBoard[players[playerNum].x][players[playerNum].y] = 0;
+
+			if (CornerJudge(players[playerNum].x, players[playerNum].y) || players[playerNum].x == 1) {
+				moveMount -= 2;
+				movable -= 1;
+				players[playerNum].x -= 1;
+				players[playerNum].y -= 1;
+				if (moveMount > 0)
+					keepGo = true;
+			}
+			if (movable > 0) {
+				if (movable > moveMount) {
+					players[playerNum].x -= moveMount;
+					players[playerNum].y -= moveMount;
+					moveMount = 0;
 				}
 				else {
-					cout << "ERROR: 위로 이동할 수 없습니다!" << endl;
+					playBoard[0][0] = playerNum + 1;
+					moveResult += playerNum + 1;
+					break;
 				}
-				break;
-			case 's':
-				if (players[playerNum].x == 10 && players[playerNum].y > 0) {
-					playBoard[players[playerNum].x][players[playerNum].y] = 0;
-					players[playerNum].y -= 2;
-					playBoard[players[playerNum].x][players[playerNum].y] = playerNum + 1;
+			}
+		}
 
-					loopFlag = false;
+		else if (players[playerNum].x + players[playerNum].y == 10) {
+			int movable = 10 - players[playerNum].x;
+
+			playBoard[players[playerNum].x][players[playerNum].y] = 0;
+
+			if (CornerJudge(players[playerNum].x, players[playerNum].y) || players[playerNum].x == 9) {
+				moveMount -= 2;
+				movable -= 1;
+				players[playerNum].x += 1;
+				players[playerNum].y -= 1;
+				if (moveMount > 0)
+					keepGo = true;
+			}
+			if (movable > 0) {
+				if (movable > moveMount) {
+					players[playerNum].x += moveMount;
+					players[playerNum].y -= moveMount;
+					moveMount = 0;
 				}
 				else {
-					cout << "ERROR: 아래로 이동할 수 없습니다!" << endl;
+					playBoard[0][0] = playerNum + 1;
+					moveResult += playerNum + 1;
+					break;
 				}
-				break;
-			case 'a':
-				if (players[playerNum].x < 10 && players[playerNum].y == 10) {
-					playBoard[players[playerNum].x][players[playerNum].y] = 0;
-					players[playerNum].x += 2;
-					playBoard[players[playerNum].x][players[playerNum].y] = playerNum + 1;
+			}
+		}
 
-					loopFlag = false;
-				}
-				else {
-					cout << "ERROR: 왼쪽으로 이동할 수 없습니다!" << endl;
-				}
-				break;
-			case 'd':
-				if (players[playerNum].x > 0 && players[playerNum].y == 0) {
-					playBoard[players[playerNum].x][players[playerNum].y] = 0;
-					players[playerNum].x -= 2;
-					playBoard[players[playerNum].x][players[playerNum].y] = playerNum + 1;
+		players[playerNum].isInit = false;
+		if (moveMount == 0) {
+			loopFlag = false;
+		}
+		else {
+			keepGo = true;
+		}
 
-					loopFlag = false;
-				}
-				else {
-					cout << "ERROR: 오른쪽으로 이동할 수 없습니다!" << endl;
-				}
-				break;
-			case 'i':
-				break;
-			case 'k':
-				break;
-			case 'j':
-				break;
-			case 'l':
-				break;
+		if (playBoard[players[playerNum].x][players[playerNum].y] != 0) {
+			if (keepGo) {
+				playBoard[players[playerNum].x][players[playerNum].y] = 3;
+			}
+			else {
+				playBoard[players[playerNum].x][players[playerNum].y] = playerNum + 1;
+				players[(playerNum + 1) % 2].isInit = true;
+				players[(playerNum + 1) % 2].x = 0;
+				players[(playerNum + 1) % 2].y = 0;
+				moveResult += 3;
+			}
+		}
+		else {
+			playBoard[players[playerNum].x][players[playerNum].y] = playerNum + 1;
 		}
 	}
+	return moveResult;
 }
 
 void Game() {
@@ -185,16 +298,26 @@ void Game() {
 	players[0] = Player(0, 0);
 	players[1] = Player(0, 0);
 	bool isFirstPlayer = true;
-	SetBoard();
+	bool isGameEnd = false;
+	int moveResult = 0;
+	string moveResultStr = "";
 	string gameStatus = "게임 시작!";
+
+	SetBoard();
 	while (true) {
+		cout << moveResultStr << endl;
 		cout << gameStatus << endl << endl;
 		gameStatus.clear();
-		if (isFirstPlayer) {
-			cout << "1번 플레이어가 윷을 던질 차례입니다." << endl << endl;
+		if (isGameEnd) {
+			cout << "아무 버튼이나 입력해서 메뉴로 돌아가세요." << endl << endl;
 		}
 		else {
-			cout << "2번 플레이어가 윷을 던질 차례입니다." << endl << endl;
+			if (isFirstPlayer) {
+				cout << "1번 플레이어가 윷을 던질 차례입니다." << endl << endl;
+			}
+			else {
+				cout << "2번 플레이어가 윷을 던질 차례입니다." << endl << endl;
+			}
 		}
 		DrawCurrentBoard();
 		cout << endl;
@@ -202,20 +325,50 @@ void Game() {
 		cout << "명령어: ";
 		cin >> gameCmd;
 		switch (gameCmd) {
-			case '1':
-				if (!isFirstPlayer) {
-					gameStatus = "ERROR: 2번 플레이어의 차례에 1번 플레이어가 윷을 던지려고 했습니다.";
-				}
-				Move(true);
-				isFirstPlayer = false;
+		case '1':
+			if (isGameEnd)
+				return;
+			if (!isFirstPlayer) {
+				gameStatus = "ERROR: 2번 플레이어의 차례에 1번 플레이어가 윷을 던지려고 했습니다.";
 				break;
-			case '2':
-				if (isFirstPlayer) {
-					gameStatus = "ERROR: 1번 플레이어의 차례에 2번 플레이어가 윷을 던지려고 했습니다.";
-				}
-				Move(false);
-				isFirstPlayer = true;
+			}
+			moveResult = Move(true);
+			moveResultStr = ChangeMoveResultToString(moveResult / 10);
+			if (moveResult % 10 == 1) {
+				gameStatus = "게임 끝! 1번 플레이어가 한 바퀴를 돌았습니다!";
+				isGameEnd = true;
 				break;
+			}
+			else if (moveResult % 10 == 3) {
+				gameStatus = "1번 플레이어가 2번 플레이어를 잡았습니다!";
+				break;
+			}
+			isFirstPlayer = false;
+			break;
+		case '2':
+			if (isGameEnd)
+				return;
+			if (isFirstPlayer) {
+				gameStatus = "ERROR: 1번 플레이어의 차례에 2번 플레이어가 윷을 던지려고 했습니다.";
+				break;
+			}
+			moveResult = Move(false);
+			moveResultStr = ChangeMoveResultToString(moveResult / 10);
+			if (moveResult % 10 == 2) {
+				gameStatus = "게임 끝! 2번 플레이어가 한 바퀴를 돌았습니다!";
+				isGameEnd = true;
+				break;
+			}
+			else if (moveResult % 10 == 3) {
+				gameStatus = "2번 플레이어가 1번 플레이어를 잡았습니다!";
+				break;
+			}
+			isFirstPlayer = true;
+			break;
+		default:
+			if (isGameEnd)
+				return;
+			break;
 		}
 		system("cls");
 	}
@@ -223,20 +376,21 @@ void Game() {
 
 int main() {
 	while (true) {
+		system("cls");
 		char cmd;
 		cout << "명령어: ";
 		cin >> cmd;
 
 		switch (cmd) {
-			case 'p':
-				Game();
-				break;
-			case 'q':
-				return 0;
-				break;
-			default:
-				cout << "ERROR: 올바르지 않은 명령어입니다." << endl;
-				break;
+		case 'p':
+			Game();
+			break;
+		case 'q':
+			return 0;
+			break;
+		default:
+			cout << "ERROR: 올바르지 않은 명령어입니다." << endl;
+			break;
 		}
 	}
 }
