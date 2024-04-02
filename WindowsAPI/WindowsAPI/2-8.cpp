@@ -51,6 +51,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	static bool _isUpperCase;
 	static bool _isInsert;
 	static bool _isF2;
+	static bool _isPageDn;
+	static bool _isPageUp;
 
 	switch (uMsg) {
 	case WM_CREATE:
@@ -87,6 +89,53 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				TextOut(hDC, 0, i * 18, L"____", 4);
 				TextOut(hDC, 32, i * 18, str[i], lstrlen(str[i]));
 			}
+			else if (_isPageDn)
+			{
+				bool isWordStarted = false;
+				TCHAR tempStr[100];
+				int tempStrCnt = 0;
+				for (int j = 0; j < lstrlen(str[i]); j++)
+				{
+					if (str[i][j] != ' ')
+					{
+						if (!isWordStarted)
+						{
+							tempStr[tempStrCnt++] = '(';
+							isWordStarted = true;
+						}
+						tempStr[tempStrCnt++] = str[i][j];
+						if (str[i][j] >= 97 && str[i][j] <= 122)
+						{
+							tempStr[tempStrCnt - 1] -= 32;
+						}
+					}
+					else if (str[i][j] == ' ')
+					{
+						if (isWordStarted)
+						{
+							tempStr[tempStrCnt++] = ')';
+							isWordStarted = false;
+						}
+						tempStr[tempStrCnt++] = str[i][j];
+					}
+				}
+				if (isWordStarted)
+					tempStr[tempStrCnt++] = ')';
+				tempStr[tempStrCnt++] = '\0';
+				TextOut(hDC, 0, i * 18, tempStr, lstrlen(tempStr));
+			}
+			else if (_isPageUp)
+			{
+				TCHAR tempStr[31];
+				int tempStrCnt = 0;
+				for (int j = 0; j < lstrlen(str[i]); j++)
+				{
+					if (str[i][j] != ' ')
+						tempStr[tempStrCnt++] = str[i][j];
+				}
+				tempStr[tempStrCnt++] = '\0';
+				TextOut(hDC, 0, i * 18, tempStr, lstrlen(tempStr));
+			}
 			else
 				TextOut(hDC, 0, i * 18, str[i], lstrlen(str[i]));
 		}
@@ -115,6 +164,35 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			_isUpperCase = !_isUpperCase;
 		}
 
+		else if (wParam == VK_F2)
+		{
+			_isF2 = !_isF2;
+		}
+
+		else if (wParam == VK_F3)
+		{
+			for (int i = 9; i > 0; i--)
+			{
+				wsprintf(str[i], str[i - 1]);
+			}
+			wsprintf(str[0], L"");
+			strCount = lstrlen(str[currentLine]);
+		}
+
+		else if (wParam == VK_F4)
+		{
+			TCHAR tempStr[10][31];
+			for (int i = 0; i < 10; i++)
+			{
+				wsprintf(tempStr[i], str[9 - i]);
+			}
+			for (int i = 0; i < 10; i++)
+			{
+				wsprintf(str[i], tempStr[i]);
+			}
+			strCount = lstrlen(str[currentLine]);
+		}
+
 		else if (wParam == VK_INSERT)
 		{
 			_isInsert = !_isInsert;
@@ -129,10 +207,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				for (; start > 0; start--)
 				{
 					if (str[currentLine][start] == ' ')
-					{
-						start++;
 						break;
-					}
 				}
 				for (; end < 31; end++)
 				{
@@ -150,11 +225,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 		else if (wParam == VK_LEFT)
 		{
-			strCount--;
+			if (strCount > 0)
+				strCount--;
 		}
 		else if (wParam == VK_RIGHT)
 		{
-			strCount++;
+			if (strCount < lstrlen(str[currentLine]))
+				strCount++;
 		}
 		else if (wParam == VK_UP)
 		{
@@ -183,9 +260,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			}
 		}
 
-		else if (wParam == VK_F2)
+		else if (wParam == VK_NEXT)
 		{
-			_isF2 = !_isF2;
+			_isPageDn = !_isPageDn;
+		}
+
+		else if (wParam == VK_PRIOR)
+		{
+			_isPageUp = !_isPageUp;
 		}
 
 		InvalidateRect(hWnd, NULL, TRUE);
@@ -214,6 +296,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					}
 					str[currentLine][i] = str[currentLine][i + 1];
 				}
+			}
+			else if (currentLine > 0) {
+				currentLine--;
+				strCount = lstrlen(str[currentLine]);
 			}
 			InvalidateRect(hWnd, NULL, TRUE);
 			break;
@@ -255,6 +341,54 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				str[currentLine][strCount] = '\0';
 			}
 			InvalidateRect(hWnd, NULL, TRUE);
+			break;
+		}
+
+		else if (wParam == '+')
+		{
+			for (int i = 0; i < 10; i++)
+			{
+				for (int j = 0; j < lstrlen(str[i]); j++)
+				{
+					if ((str[i][j] >= 97 && str[i][j] <= 122) ||
+						(str[i][j] >= 65 && str[i][j] <= 90) ||
+						(str[i][j] >= 48 && str[i][j] <= 57))
+					{
+						if (str[i][j] == 122)
+							str[i][j] = 97;
+						else if (str[i][j] == 90)
+							str[i][j] = 65;
+						else if (str[i][j] == 57)
+							str[i][j] = 48;
+						else
+							str[i][j]++;
+					}
+				}
+			}
+			break;
+		}
+
+		else if (wParam == '-')
+		{
+			for (int i = 0; i < 10; i++)
+			{
+				for (int j = 0; j < lstrlen(str[i]); j++)
+				{
+					if ((str[i][j] >= 97 && str[i][j] <= 122) ||
+						(str[i][j] >= 65 && str[i][j] <= 90) ||
+						(str[i][j] >= 48 && str[i][j] <= 57))
+					{
+						if (str[i][j] == 97)
+							str[i][j] = 122;
+						else if (str[i][j] == 65)
+							str[i][j] = 90;
+						else if (str[i][j] == 48)
+							str[i][j] = 57;
+						else
+							str[i][j]--;
+					}
+				}
+			}
 			break;
 		}
 
