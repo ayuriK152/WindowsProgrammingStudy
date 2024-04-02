@@ -45,12 +45,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	PAINTSTRUCT ps;
 	HDC hDC;
 	RECT rc;
+	HBRUSH hBrush, oldBrush;
+	POINT triPoint[3];
+	POINT rectPoint[4];
+	POINT pentaPoint[5];
+
+	int currentLeft;
+	int currentRight;
+	int currentTop;
+	int currentBottom;
 	static int vpWidth;
 	static int vpHeight;
 	static int shapes[4] = { 0 , 1 , 2 , 3 };
+	static COLORREF baseColor[4] = { RGB(255, 0, 0), RGB(255, 255, 0), RGB(0, 255, 0), RGB(0, 0, 255) };
+	static COLORREF randColor = NULL;
+	static int currentShape;
 
 	switch (uMsg) {
 	case WM_CREATE:
+		srand((unsigned int)time(NULL));
+		currentShape = rand() % 4;
 		break;
 
 	case WM_PAINT:
@@ -60,65 +74,180 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		vpWidth = rc.right - rc.left;
 		vpHeight = rc.bottom - rc.top;
 
+		currentLeft = vpWidth / 24 * 9;
+		currentRight = vpWidth / 24 * 15;
+		currentTop = vpHeight / 24 * 9;
+		currentBottom = vpHeight / 24 * 15;
+
+		triPoint[0] = { currentLeft + (currentRight - currentLeft) / 2, currentTop };
+		triPoint[1] = { currentRight, currentBottom };
+		triPoint[2] = { currentLeft, currentBottom };
+
+		rectPoint[0] = { currentLeft, currentTop };
+		rectPoint[1] = { currentRight, currentTop };
+		rectPoint[2] = { currentLeft, currentBottom };
+		rectPoint[3] = { currentRight, currentBottom };
+
+		pentaPoint[0] = { (currentLeft + currentRight) / 2, currentTop };
+		pentaPoint[1] = { currentRight, currentTop + (currentBottom - currentTop) / 5 * 2 };
+		pentaPoint[2] = { currentLeft + (currentRight - currentLeft) / 4 * 3, currentBottom };
+		pentaPoint[3] = { currentLeft + (currentRight - currentLeft) / 4, currentBottom };
+		pentaPoint[4] = { currentLeft, currentTop + (currentBottom - currentTop) / 5 * 2 };
+
 		Rectangle(hDC, vpWidth / 3, vpHeight / 3, vpWidth / 3 * 2, vpHeight / 3 * 2);
+
+		if (randColor != NULL)
+			hBrush = CreateSolidBrush(randColor);
+		else
+			hBrush = CreateSolidBrush(baseColor[currentShape]);
+		oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+		switch (currentShape)
+		{
+		case 0:
+			Polygon(hDC, rectPoint, 4);
+			break;
+		case 1:
+			Polygon(hDC, pentaPoint, 5);
+			break;
+		case 2:
+			Pie(hDC, currentLeft, currentTop, currentRight, currentBottom, currentLeft + (currentRight - currentLeft) / 2, currentTop, currentRight, currentTop + (currentBottom - currentTop) / 2);
+			break;
+		case 3:
+			Polygon(hDC, triPoint, 3);
+			break;
+		}
+		SelectObject(hDC, oldBrush);
+		DeleteObject(hBrush);
 
 		for (int i = 0; i < 4; i++)
 		{
-			int currentLeft;
-			int currentRight;
-			int currentTop;
-			int currentBottom;
+			if (currentShape == shapes[i] && randColor != NULL)
+				hBrush = CreateSolidBrush(randColor);
+			else
+				hBrush = CreateSolidBrush(baseColor[shapes[i]]);
+			oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
 			switch (i)
 			{
 				case 0:
-					currentLeft = vpWidth / 3;
-					currentRight = vpWidth / 3 * 2;
-					currentTop = 0;
-					currentBottom = vpHeight / 3;
+					currentLeft = vpWidth / 12 * 5;
+					currentRight = vpWidth / 12 * 7;
+					currentTop = vpHeight / 12;
+					currentBottom = vpHeight / 12 * 3;
 					break;
 				case 1:
-					currentLeft = vpWidth / 3 * 2;
-					currentRight = vpWidth;
-					currentTop = vpHeight / 3;
-					currentBottom = vpHeight / 3 * 2;
+					currentLeft = vpWidth / 12 * 9;
+					currentRight = vpWidth / 12 * 11;
+					currentTop = vpHeight / 12 * 5;
+					currentBottom = vpHeight / 12 * 7;
 					break;
 				case 2:
-					currentLeft = vpWidth / 3;
-					currentRight = vpWidth / 3 * 2;
-					currentTop = vpHeight / 3 * 2;
-					currentBottom = vpHeight;
+					currentLeft = vpWidth / 12 * 5;
+					currentRight = vpWidth / 12 * 7;
+					currentTop = vpHeight / 12 * 9;
+					currentBottom = vpHeight / 12 * 11;
 					break;
 				case 3:
-					currentLeft = 0;
-					currentRight = vpWidth / 3;
-					currentTop = vpHeight / 3;
-					currentBottom = vpHeight / 3 * 2;
+					currentLeft = vpWidth / 12;
+					currentRight = vpWidth / 12 * 3;
+					currentTop = vpHeight / 12 * 5;
+					currentBottom = vpHeight / 12 * 7;
 					break;
 			}
-			POINT rectPoint[4] = { {currentLeft + vpWidth / 12, currentTop + vpHeight / 12},
-										{currentLeft + vpWidth / 12 * 3, currentTop + vpHeight / 12},
-										{currentLeft + vpWidth / 12, currentTop + vpHeight / 12 * 3},
-										{currentLeft + vpWidth / 12 * 3, currentTop + vpHeight / 12 * 3} };
-			POINT pentaPoint[5] = { {(currentLeft + currentRight) / 2, currentTop},
-										{currentLeft + vpWidth / 15, currentTop + vpHeight / 15 * 2},
-										{currentLeft + vpWidth / 15 * 4, currentBottom},
-										{currentLeft + vpWidth / 15 * 2, currentBottom},
-										{currentLeft + vpWidth / 15, currentTop + vpHeight / 15 * 2} };
+
+			triPoint[0] = { currentLeft + (currentRight - currentLeft) / 2, currentTop };
+			triPoint[1] = { currentRight, currentBottom };
+			triPoint[2] = { currentLeft, currentBottom };
+
+			rectPoint[0] = { currentLeft, currentTop };
+			rectPoint[1] = { currentRight, currentTop };
+			rectPoint[2] = { currentLeft, currentBottom };
+			rectPoint[3] = { currentRight, currentBottom };
+
+			pentaPoint[0] = { (currentLeft + currentRight) / 2, currentTop };
+			pentaPoint[1] = { currentRight, currentTop + (currentBottom - currentTop) / 5 * 2 };
+			pentaPoint[2] = { currentLeft + (currentRight - currentLeft) / 4 * 3, currentBottom };
+			pentaPoint[3] = { currentLeft + (currentRight - currentLeft) / 4, currentBottom };
+			pentaPoint[4] = { currentLeft, currentTop + (currentBottom - currentTop) / 5 * 2 };
 			switch (shapes[i])
 			{
 				case 0:
 					Polygon(hDC, rectPoint, 4);
 					break;
 				case 1:
-					Polygon(hDC, pentaPoint, 4);
+					Polygon(hDC, pentaPoint, 5);
 					break;
 				case 2:
+					Pie(hDC, currentLeft, currentTop, currentRight, currentBottom, currentLeft + (currentRight - currentLeft) / 2, currentTop, currentRight, currentTop + (currentBottom - currentTop) / 2);
 					break;
 				case 3:
+					Polygon(hDC, triPoint, 3);
 					break;
 			}
+
+			SelectObject(hDC, oldBrush);
+			DeleteObject(hBrush);
 		}
 		EndPaint(hWnd, &ps);
+		break;
+
+	case WM_KEYDOWN:
+		srand((unsigned int)time(NULL));
+		if (wParam == 's' || wParam == 'S')
+		{
+			currentShape = 0;
+			randColor = RGB(rand() % 256, rand() % 256, rand() % 256);
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == 'p' || wParam == 'P')
+		{
+			currentShape = 1;
+			randColor = RGB(rand() % 256, rand() % 256, rand() % 256);
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == 'e' || wParam == 'E')
+		{
+			currentShape = 2;
+			randColor = RGB(rand() % 256, rand() % 256, rand() % 256);
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == 't' || wParam == 'T')
+		{
+			currentShape = 3;
+			randColor = RGB(rand() % 256, rand() % 256, rand() % 256);
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+
+		else if (wParam == VK_LEFT)
+		{
+			int temp = shapes[0];
+			for (int i = 0; i < 3; i++)
+			{
+				shapes[i] = shapes[i + 1];
+			}
+			shapes[3] = temp;
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == VK_RIGHT)
+		{
+			int temp = shapes[3];
+			for (int i = 3; i > 0; i--)
+			{
+				shapes[i] = shapes[i - 1];
+			}
+			shapes[0] = temp;
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+
+		else if (wParam == 'q' || wParam == 'Q')
+		{
+			PostQuitMessage(0);
+			break;
+		}
+		break;
+
+	case WM_KEYUP:
+		randColor = NULL;
+		InvalidateRect(hWnd, NULL, TRUE);
 		break;
 
 	case WM_DESTROY:
