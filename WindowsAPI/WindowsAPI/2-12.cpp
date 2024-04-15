@@ -2,14 +2,18 @@
 #include <tchar.h>
 #include <stdlib.h>
 #include <time.h>
+#include <iostream>
+#include <vector>
 #define CELLSIZE 18
+
+using namespace std;
 
 struct Shape
 {
-	int shape;
-	int color;
-	int size;
 	int x, y;
+	int size;
+	int shapeIdx;
+	int colorIdx;
 };
 
 HINSTANCE g_hInst;
@@ -55,434 +59,262 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	HDC hDC;
 	HBRUSH hBrush, oldBrush;
 	HPEN hPen, oldPen;
-	static Shape shape[50][50];
-	static Shape* shapeQueue[10];
-	static Shape* selectedShape = NULL;
-	static Shape hidedShape = { -1, -1, 0, -1, -1 };
-	static int shapeQueueCnt = 0;
-	static int boardSize = 40;
+	static Shape board[50][50];
+	static int boardSize, rectLen;
+	static vector<Shape> shapeQueue;
+	static Shape selectedShape;
+	static int selectedIdx;
 	static COLORREF baseColors[4] = { RGB(255, 0, 0), RGB(0, 255, 0), RGB(0, 0, 255), RGB(255, 255, 0) };
-	static bool isShapeByColors = false;
+	static bool isChanged;
 
 	switch (uMsg) {
 	case WM_CREATE:
-		for (int i = 0; i < 50; i++)
+		for (int y = 0; y < 50; y++)
 		{
-			for (int j = 0; j < 50; j++)
+			for (int x = 0; x < 50; x++)
 			{
-				shape[i][j] = { -1, -1, 0, j, i };
+				board[y][x] = { x, y, 0, -1, -1 };
 			}
 		}
+		boardSize = 40;
+		rectLen = 900 / boardSize;
+		selectedShape = { -1, -1, 0, -1, -1 };
+		selectedIdx = -1;
+		isChanged = false;
 		break;
 
 	case WM_PAINT:
 		hDC = BeginPaint(hWnd, &ps);
 
-		for (int i = 0; i <= boardSize; i++)
+		if (shapeQueue.size() > 10)
 		{
-			MoveToEx(hDC, 0, i * CELLSIZE, NULL);
-			LineTo(hDC, boardSize * CELLSIZE, i * CELLSIZE);
-		}
-		for (int i = 0; i <= boardSize; i++)
-		{
-			MoveToEx(hDC, i * CELLSIZE, 0, NULL);
-			LineTo(hDC, i * CELLSIZE, boardSize * CELLSIZE);
+			board[shapeQueue[0].y][shapeQueue[0].x] = { shapeQueue[0].x, shapeQueue[0].y, 0, -1, -1 };
+			shapeQueue.erase(shapeQueue.begin());
+			if (selectedIdx >= 0)
+				selectedIdx--;
+			if (selectedIdx == -1)
+				selectedShape = { -1, -1, 0, -1, -1 };
 		}
 
-		if (!isShapeByColors)
-		{
-			for (int i = 0; i < boardSize; i++)
-			{
-				for (int j = 0; j < boardSize; j++)
-				{
-					if (shape[i][j].shape != -1)
-					{
-						hBrush = CreateSolidBrush(baseColors[shape[i][j].color]);
-						oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
-						switch (shape[i][j].shape)
-						{
-						case 0:
-							Ellipse(hDC, j * CELLSIZE, i * CELLSIZE, (j + 1) * CELLSIZE, (i + 1) * CELLSIZE);
-							break;
-						case 1:
-							POINT triPoints[3];
-							triPoints[0] = { j * CELLSIZE + CELLSIZE / 2, i * CELLSIZE };
-							triPoints[1] = { (j + 1) * CELLSIZE, (i + 1) * CELLSIZE };
-							triPoints[2] = { j * CELLSIZE, (i + 1) * CELLSIZE };
-							Polygon(hDC, triPoints, 3);
-							break;
-						case 2:
-							Rectangle(hDC, j * CELLSIZE, i * CELLSIZE, (j + 1) * CELLSIZE, (i + 1) * CELLSIZE);
-							break;
-						}
-					}
-				}
-			}
-		}
-		else
-		{
-			for (int i = 0; i <= boardSize; i++)
-			{
-				for (int j = 0; j <= boardSize; j++)
-				{
-					if (shape[i][j].shape != -1)
-					{
-						hBrush = CreateSolidBrush(baseColors[shape[i][j].color]);
-						oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
-						switch (shape[i][j].color)
-						{
-						case 0:
-							POINT diaPoints[4];
-							diaPoints[0] = { j * CELLSIZE + CELLSIZE / 2, i * CELLSIZE };
-							diaPoints[1] = { (j + 1) * CELLSIZE, i * CELLSIZE + CELLSIZE / 2 };
-							diaPoints[2] = { j * CELLSIZE + CELLSIZE / 2, (i + 1) * CELLSIZE };
-							diaPoints[3] = { j * CELLSIZE, i * CELLSIZE + CELLSIZE / 2 };
-							Polygon(hDC, diaPoints, 4);
-							break;
-						case 1:
-							POINT triPoints[3];
-							triPoints[0] = { j * CELLSIZE + CELLSIZE / 2, (i + 1) * CELLSIZE };
-							triPoints[1] = { (j + 1) * CELLSIZE, i * CELLSIZE };
-							triPoints[2] = { j * CELLSIZE, i * CELLSIZE };
-							Polygon(hDC, triPoints, 3);
-							break;
-						case 2:
-							POINT pentaPoints[5];
-							pentaPoints[0] = { j * CELLSIZE + CELLSIZE / 2, i * CELLSIZE };
-							pentaPoints[1] = { (j + 1) * CELLSIZE, i * CELLSIZE + CELLSIZE / 5 * 2 };
-							pentaPoints[2] = { j * CELLSIZE + CELLSIZE / 5 * 4, (i + 1) * CELLSIZE };
-							pentaPoints[3] = { j * CELLSIZE + CELLSIZE / 5, (i + 1) * CELLSIZE };
-							pentaPoints[4] = { j * CELLSIZE, i * CELLSIZE + CELLSIZE / 5 * 2 };
-							Polygon(hDC, pentaPoints, 5);
-							break;
-						case 3:
-							POINT startPoints[5];
-							startPoints[0] = { j * CELLSIZE + CELLSIZE / 2, i * CELLSIZE };
-							startPoints[1] = { j * CELLSIZE + CELLSIZE / 5, (i + 1) * CELLSIZE };
-							startPoints[2] = { (j + 1) * CELLSIZE, i * CELLSIZE + CELLSIZE / 5 * 2 };
-							startPoints[3] = { j * CELLSIZE, i * CELLSIZE + CELLSIZE / 5 * 2 };
-							startPoints[4] = { j * CELLSIZE + CELLSIZE / 5 * 4, (i + 1) * CELLSIZE };
-							Polygon(hDC, startPoints, 5);
-							break;
-						}
-						SelectObject(hDC, oldBrush);
-						DeleteObject(hBrush);
-					}
-				}
-			}
-		}
-		if (selectedShape != NULL)
-		{
-			hPen = CreatePen(BS_SOLID, 2, RGB(0, 255, 255));
-			oldPen = (HPEN)SelectObject(hDC, hPen);
-			hBrush = CreateSolidBrush(baseColors[selectedShape->color]);
-			oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+		hPen = CreatePen(BS_SOLID, 1, RGB(0, 0, 0));
+		oldPen = (HPEN)SelectObject(hDC, hPen);
+		hBrush = CreateSolidBrush(RGB(255, 255, 255));
+		oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
 
-			if (!isShapeByColors)
+		for (int y = 0; y < boardSize; y++)
+		{
+			for (int x = 0; x < boardSize; x++)
 			{
-				switch (selectedShape->shape)
-				{
-				case 0:
-					Ellipse(hDC, selectedShape->x * CELLSIZE, selectedShape->y * CELLSIZE, (selectedShape->x + 1) * CELLSIZE, (selectedShape->y + 1) * CELLSIZE);
-					break;
-				case 1:
-					POINT triPoints[3];
-					triPoints[0] = { selectedShape->x * CELLSIZE + CELLSIZE / 2, selectedShape->y * CELLSIZE };
-					triPoints[1] = { (selectedShape->x + 1) * CELLSIZE, (selectedShape->y + 1) * CELLSIZE };
-					triPoints[2] = { selectedShape->x * CELLSIZE, (selectedShape->y + 1) * CELLSIZE };
-					Polygon(hDC, triPoints, 3);
-					break;
-				case 2:
-					Rectangle(hDC, selectedShape->x * CELLSIZE, selectedShape->y * CELLSIZE, (selectedShape->x + 1) * CELLSIZE, (selectedShape->y + 1) * CELLSIZE);
-					break;
-				}
+				Rectangle(hDC, x * rectLen, y * rectLen, (x + 1) * rectLen, (y + 1) * rectLen);
+			}
+		}
+
+		SelectObject(hDC, oldBrush);
+		DeleteObject(hBrush);
+		SelectObject(hDC, oldPen);
+		DeleteObject(hPen);
+
+		if (selectedIdx != -1)
+			shapeQueue.push_back(selectedShape);
+
+		for (int i = 0; i < shapeQueue.size(); i++)
+		{
+			if (i == shapeQueue.size() - 1 && selectedIdx != -1)
+			{
+				hPen = CreatePen(BS_SOLID, 1, RGB(0, 0, 0));
+				oldPen = (HPEN)SelectObject(hDC, hPen);
+				hBrush = CreateSolidBrush(RGB(255, 255, 255));
+				oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+				Rectangle(hDC, shapeQueue[i].x * rectLen, shapeQueue[i].y * rectLen, (shapeQueue[i].x + 1) * rectLen, (shapeQueue[i].y + 1) * rectLen);
+
+				SelectObject(hDC, oldBrush);
+				DeleteObject(hBrush);
+				SelectObject(hDC, oldPen);
+				DeleteObject(hPen);
+
+				hPen = CreatePen(BS_SOLID, 3, RGB(0, 255, 255));
+				oldPen = (HPEN)SelectObject(hDC, hPen);
 			}
 			else
 			{
-				switch (selectedShape->color)
-				{
+				hPen = CreatePen(BS_SOLID, 1, RGB(0, 0, 0));
+				oldPen = (HPEN)SelectObject(hDC, hPen);
+			}
+
+			int shapeSize;
+			shapeSize = rectLen - (2 - shapeQueue[i].size) * 2;
+
+			switch (shapeQueue[i].shapeIdx)
+			{
 				case 0:
-					POINT diaPoints[4];
-					diaPoints[0] = { selectedShape->x * CELLSIZE + CELLSIZE / 2, selectedShape->y * CELLSIZE };
-					diaPoints[1] = { (selectedShape->x + 1) * CELLSIZE, selectedShape->y * CELLSIZE + CELLSIZE / 2 };
-					diaPoints[2] = { selectedShape->x * CELLSIZE + CELLSIZE / 2, (selectedShape->y + 1) * CELLSIZE };
-					diaPoints[3] = { selectedShape->x * CELLSIZE, selectedShape->y * CELLSIZE + CELLSIZE / 2 };
-					Polygon(hDC, diaPoints, 4);
+					hBrush = CreateSolidBrush(baseColors[shapeQueue[i].colorIdx]);
+					oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+					Ellipse(hDC, shapeQueue[i].x * rectLen + (2 - shapeQueue[i].size) * 2, shapeQueue[i].y * rectLen + (2 - shapeQueue[i].size) * 2, (shapeQueue[i].x + 1) * rectLen - (2 - shapeQueue[i].size) * 2, (shapeQueue[i].y + 1) * rectLen - (2 - shapeQueue[i].size) * 2);
 					break;
 				case 1:
+					hBrush = CreateSolidBrush(baseColors[shapeQueue[i].colorIdx]);
+					oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
 					POINT triPoints[3];
-					triPoints[0] = { selectedShape->x * CELLSIZE + CELLSIZE / 2, (selectedShape->y + 1) * CELLSIZE };
-					triPoints[1] = { (selectedShape->x + 1) * CELLSIZE, selectedShape->y * CELLSIZE };
-					triPoints[2] = { selectedShape->x * CELLSIZE, selectedShape->y * CELLSIZE };
+					triPoints[0] = { shapeQueue[i].x * rectLen + rectLen / 2, shapeQueue[i].y * rectLen + (2 - shapeQueue[i].size) * 2 };
+					triPoints[1] = { (shapeQueue[i].x + 1) * rectLen - (2 - shapeQueue[i].size) * 2, (shapeQueue[i].y + 1) * rectLen - (2 - shapeQueue[i].size) * 2 };
+					triPoints[2] = { shapeQueue[i].x * rectLen + (2 - shapeQueue[i].size) * 2, (shapeQueue[i].y + 1) * rectLen - (2 - shapeQueue[i].size) * 2 };
 					Polygon(hDC, triPoints, 3);
 					break;
 				case 2:
-					POINT pentaPoints[5];
-					pentaPoints[0] = { selectedShape->x * CELLSIZE + CELLSIZE / 2, selectedShape->y * CELLSIZE };
-					pentaPoints[1] = { (selectedShape->x + 1) * CELLSIZE, selectedShape->y * CELLSIZE + CELLSIZE / 5 * 2 };
-					pentaPoints[2] = { selectedShape->x * CELLSIZE + CELLSIZE / 5 * 4, (selectedShape->y + 1) * CELLSIZE };
-					pentaPoints[3] = { selectedShape->x * CELLSIZE + CELLSIZE / 5, (selectedShape->y + 1) * CELLSIZE };
-					pentaPoints[4] = { selectedShape->x * CELLSIZE, selectedShape->y * CELLSIZE + CELLSIZE / 5 * 2 };
-					Polygon(hDC, pentaPoints, 5);
+					hBrush = CreateSolidBrush(baseColors[shapeQueue[i].colorIdx]);
+					oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+					Rectangle(hDC, shapeQueue[i].x * rectLen + (2 - shapeQueue[i].size) * 2, shapeQueue[i].y * rectLen + (2 - shapeQueue[i].size) * 2, (shapeQueue[i].x + 1) * rectLen - (2 - shapeQueue[i].size) * 2, (shapeQueue[i].y + 1) * rectLen - (2 - shapeQueue[i].size) * 2);
 					break;
-				case 3:
-					POINT startPoints[5];
-					startPoints[0] = { selectedShape->x * CELLSIZE + CELLSIZE / 2, selectedShape->y * CELLSIZE };
-					startPoints[1] = { selectedShape->x * CELLSIZE + CELLSIZE / 5, (selectedShape->y + 1) * CELLSIZE };
-					startPoints[2] = { (selectedShape->x + 1) * CELLSIZE, selectedShape->y * CELLSIZE + CELLSIZE / 5 * 2 };
-					startPoints[3] = { selectedShape->x * CELLSIZE, selectedShape->y * CELLSIZE + CELLSIZE / 5 * 2 };
-					startPoints[4] = { selectedShape->x * CELLSIZE + CELLSIZE / 5 * 4, (selectedShape->y + 1) * CELLSIZE };
-					Polygon(hDC, startPoints, 5);
-					break;
-				}
 			}
-			SelectObject(hDC, oldPen);
-			DeleteObject(hPen);
 			SelectObject(hDC, oldBrush);
 			DeleteObject(hBrush);
+			SelectObject(hDC, oldPen);
+			DeleteObject(hPen);
 		}
+
+		if (selectedIdx != -1)
+			shapeQueue.pop_back();
 
 		EndPaint(hWnd, &ps);
 		break;
 
 	case WM_KEYDOWN:
-		if (wParam == VK_UP)
+		if ((wParam == VK_UP || wParam == VK_DOWN || wParam == VK_LEFT || wParam == VK_RIGHT) && selectedIdx != -1)
 		{
-			if (selectedShape == NULL)
-				break;
-			Shape* preShape = &shape[selectedShape->y][selectedShape->x];
-			int movedPos = selectedShape->y == 0 ? boardSize - 1 : selectedShape->y - 1;
-			if (shape[movedPos][selectedShape->x].shape != -1)
+			switch (wParam)
 			{
-				hidedShape = { shape[movedPos][selectedShape->x].shape, shape[movedPos][selectedShape->x].color, shape[movedPos][selectedShape->x].size, selectedShape->x, movedPos };
+				case VK_UP:
+					shapeQueue[selectedIdx].y = shapeQueue[selectedIdx].y == 0 ? boardSize - 1 : shapeQueue[selectedIdx].y - 1;
+					selectedShape.y = selectedShape.y == 0 ? boardSize - 1 : selectedShape.y - 1;
+					break;
+				case VK_DOWN:
+					shapeQueue[selectedIdx].y = shapeQueue[selectedIdx].y == boardSize - 1 ? 0 : shapeQueue[selectedIdx].y + 1;
+					selectedShape.y = selectedShape.y == boardSize - 1 ? 0 : selectedShape.y + 1;
+					break;
+				case VK_LEFT:
+					shapeQueue[selectedIdx].x = shapeQueue[selectedIdx].x == 0 ? boardSize - 1 : shapeQueue[selectedIdx].x - 1;
+					selectedShape.x = selectedShape.x == 0 ? boardSize - 1 : selectedShape.x - 1;
+					break;
+				case VK_RIGHT:
+					shapeQueue[selectedIdx].x = shapeQueue[selectedIdx].x == boardSize - 1 ? 0 : shapeQueue[selectedIdx].x + 1;
+					selectedShape.x = selectedShape.x == boardSize - 1 ? 0 : selectedShape.x + 1;
+					break;
 			}
-
-			selectedShape = &shape[movedPos][selectedShape->x];
-
-			shape[selectedShape->y][selectedShape->x].shape = preShape->shape;
-			shape[selectedShape->y][selectedShape->x].color = preShape->color;
-			shape[selectedShape->y][selectedShape->x].size = preShape->size;
-			preShape->shape = -1;
-			preShape->color = -1;
-			preShape->size = 0;
-
-			InvalidateRect(hWnd, NULL, TRUE);
-		}
-		else if (wParam == VK_DOWN)
-		{
-			if (selectedShape == NULL)
-				break;
-			Shape* preShape = &shape[selectedShape->y][selectedShape->x];
-			int movedPos = selectedShape->y == boardSize - 1 ? 0 : selectedShape->y + 1;
-			if (shape[movedPos][selectedShape->x].shape != -1)
-			{
-				hidedShape = { shape[movedPos][selectedShape->x].shape, shape[movedPos][selectedShape->x].color, shape[movedPos][selectedShape->x].size, selectedShape->x, movedPos };
-			}
-
-			selectedShape = &shape[movedPos][selectedShape->x];
-
-			shape[selectedShape->y][selectedShape->x].shape = preShape->shape;
-			shape[selectedShape->y][selectedShape->x].color = preShape->color;
-			shape[selectedShape->y][selectedShape->x].size = preShape->size;
-			preShape->shape = -1;
-			preShape->color = -1;
-			preShape->size = 0;
-
-			InvalidateRect(hWnd, NULL, TRUE);
-		}
-		else if (wParam == VK_LEFT)
-		{
-			if (selectedShape == NULL)
-				break;
-			Shape* preShape = &shape[selectedShape->y][selectedShape->x];
-			int movedPos = selectedShape->x == 0 ? boardSize - 1 : selectedShape->x - 1;
-			if (shape[movedPos][selectedShape->x].shape != -1)
-			{
-				hidedShape = { shape[movedPos][selectedShape->x].shape, shape[movedPos][selectedShape->x].color, shape[movedPos][selectedShape->x].size, movedPos, selectedShape->y};
-			}
-
-			selectedShape = &shape[selectedShape->y][movedPos];
-
-			shape[selectedShape->y][selectedShape->x].shape = preShape->shape;
-			shape[selectedShape->y][selectedShape->x].color = preShape->color;
-			shape[selectedShape->y][selectedShape->x].size = preShape->size;
-			preShape->shape = -1;
-			preShape->color = -1;
-			preShape->size = 0;
-
-			InvalidateRect(hWnd, NULL, TRUE);
-		}
-		else if (wParam == VK_RIGHT)
-		{
-			if (selectedShape == NULL)
-				break;
-			Shape* preShape = &shape[selectedShape->y][selectedShape->x];
-			int movedPos = selectedShape->x == boardSize - 1 ? 0 : selectedShape->x + 1;
-			if (shape[movedPos][selectedShape->x].shape != -1)
-			{
-				hidedShape = { shape[movedPos][selectedShape->x].shape, shape[movedPos][selectedShape->x].color, shape[movedPos][selectedShape->x].size, movedPos, selectedShape->y };
-			}
-
-			selectedShape = &shape[selectedShape->y][movedPos];
-
-			shape[selectedShape->y][selectedShape->x].shape = preShape->shape;
-			shape[selectedShape->y][selectedShape->x].color = preShape->color;
-			shape[selectedShape->y][selectedShape->x].size = preShape->size;
-			preShape->shape = -1;
-			preShape->color = -1;
-			preShape->size = 0;
-
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		break;
 
 	case WM_CHAR:
+		srand((unsigned int)time(NULL));
+
 		if (wParam == 's')
 		{
 			boardSize = 30;
-
+			rectLen = 900 / boardSize;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == 'm')
 		{
 			boardSize = 40;
-
+			rectLen = 900 / boardSize;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == 'l')
 		{
 			boardSize = 50;
-
+			rectLen = 900 / boardSize;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
+
 		else if (wParam == 'e')
 		{
-			srand((unsigned int)time(NULL));
-			int tempX, tempY;
-			while (true)
+			int tempX = rand() % boardSize, tempY = rand() % boardSize;
+			while (board[tempY][tempX].shapeIdx != -1)
 			{
 				tempX = rand() % boardSize;
 				tempY = rand() % boardSize;
-				if (shape[tempY][tempX].shape == -1)
-					break;
 			}
-			shape[tempY][tempX].shape = 0;
-			shape[tempY][tempX].color = rand() % 4;
-			shape[tempY][tempX].size = 3;
-
-			if (shapeQueueCnt == 10) {
-				shapeQueue[0]->shape = -1;
-				shapeQueue[0]->color = -1;
-				shapeQueue[0]->size = 3;
-				for (int i = 0; i < 9; i++)
-				{
-					shapeQueue[i] = shapeQueue[i + 1];
-				}
-				shapeQueue[9] = &shape[tempY][tempX];
-			}
-			else
-				shapeQueue[shapeQueueCnt++] = &shape[tempY][tempX];
-
+			board[tempY][tempX] = { tempX, tempY, 2, 0, rand() % 4 };
+			shapeQueue.push_back(board[tempY][tempX]);
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == 't')
 		{
-			srand((unsigned int)time(NULL));
-			int tempX, tempY;
-			while (true)
+			int tempX = rand() % boardSize, tempY = rand() % boardSize;
+			while (board[tempY][tempX].shapeIdx != -1)
 			{
 				tempX = rand() % boardSize;
 				tempY = rand() % boardSize;
-				if (shape[tempY][tempX].shape == -1)
-					break;
 			}
-			shape[tempY][tempX].shape = 1;
-			shape[tempY][tempX].color = rand() % 4;
-			shape[tempY][tempX].size = 3;
-
-			if (shapeQueueCnt == 10) {
-				shapeQueue[0]->shape = -1;
-				shapeQueue[0]->color = -1;
-				shapeQueue[0]->size = 3;
-				for (int i = 0; i < 9; i++)
-				{
-					shapeQueue[i] = shapeQueue[i + 1];
-				}
-				shapeQueue[9] = &shape[tempY][tempX];
-			}
-			else
-				shapeQueue[shapeQueueCnt++] = &shape[tempY][tempX];
-
+			board[tempY][tempX] = { tempX, tempY, 2, 1, rand() % 4 };
+			shapeQueue.push_back(board[tempY][tempX]);
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == 'r')
 		{
-			srand((unsigned int)time(NULL));
-			int tempX, tempY;
-			while (true)
+			int tempX = rand() % boardSize, tempY = rand() % boardSize;
+			while (board[tempY][tempX].shapeIdx != -1)
 			{
 				tempX = rand() % boardSize;
 				tempY = rand() % boardSize;
-				if (shape[tempY][tempX].shape == -1)
-					break;
 			}
-			shape[tempY][tempX].shape = 2;
-			shape[tempY][tempX].color = rand() % 4;
-			shape[tempY][tempX].size = 3;
-
-			if (shapeQueueCnt == 10) {
-				shapeQueue[0]->shape = -1;
-				shapeQueue[0]->color = -1;
-				shapeQueue[0]->size = 3;
-				for (int i = 0; i < 9; i++)
-				{
-					shapeQueue[i] = shapeQueue[i + 1];
-				}
-				shapeQueue[9] = &shape[tempY][tempX];
-			}
-			else
-				shapeQueue[shapeQueueCnt++] = &shape[tempY][tempX];
-
+			board[tempY][tempX] = { tempX, tempY, 2, 2, rand() % 4 };
+			shapeQueue.push_back(board[tempY][tempX]);
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
-		else if (wParam == 'c')
+
+		else if (wParam >= 48 && wParam <= 57)
 		{
-			isShapeByColors = !isShapeByColors;
-
+			if (wParam - 48 >= shapeQueue.size())
+				break;
+			selectedShape = shapeQueue[wParam - 48];
+			selectedIdx = wParam - 48;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
+
+		else if (wParam == '+' && selectedIdx != -1)
+		{
+			if (selectedShape.size == 2)
+				break;
+			shapeQueue[selectedIdx].size++;
+			selectedShape.size++;
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == '-' && selectedIdx != -1)
+		{
+			if (selectedShape.size == 0)
+				break;
+			shapeQueue[selectedIdx].size--;
+			selectedShape.size--;
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+
 		else if (wParam == 'd')
 		{
-			isShapeByColors = !isShapeByColors;
-
+			if (selectedIdx == -1)
+				break;
+			shapeQueue.erase(shapeQueue.begin() + selectedIdx);
+			selectedIdx = -1;
+			selectedShape = { -1, -1, 0, -1, -1 };
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == 'p')
 		{
-			for (int i = 0; i < 50; i++)
-			{
-				for (int j = 0; j < 50; j++)
-				{
-					shape[i][j] = { -1, -1, 0, j, i };
-				}
-			}
-			shapeQueueCnt = 0;
-
-			InvalidateRect(hWnd, NULL, TRUE);
-		}
-		else if (wParam >= 48 && wParam <= 57)
-		{
-			int idx = wParam - 48;
-			if (idx >= shapeQueueCnt)
-				break;
-			selectedShape = shapeQueue[idx];
-
+			shapeQueue.clear();
+			selectedIdx = -1;
+			selectedShape = { -1, -1, 0, -1, -1 };
+			isChanged = false;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == 'q')
 		{
 			PostQuitMessage(0);
 		}
+
 		break;
 
 	case WM_DESTROY:
