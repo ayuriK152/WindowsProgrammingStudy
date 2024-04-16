@@ -12,11 +12,13 @@ class Letter
 public:
 	int x, y;
 	TCHAR letter[10];
-	Letter(int x, int y, const TCHAR letter[])
+	bool isNum;
+	Letter(int x, int y, const TCHAR letter[], bool isNum)
 	{
 		this->x = x;
 		this->y = y;
 		wsprintf(this->letter, letter);
+		this->isNum = isNum;
 	}
 };
 
@@ -104,7 +106,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 			TCHAR tempLetter[10];
 			wsprintf(tempLetter, L"%d", i);
-			letters.push_back(Letter(tempX, tempY, tempLetter));
+			letters.push_back(Letter(tempX, tempY, tempLetter, true));
 		}
 
 		InvalidateRect(hWnd, NULL, TRUE);
@@ -154,6 +156,61 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				if (player.x == letters[i].x && player.y == letters[i].y)
 				{
 					letters[i].y = letters[i].y == 0 ? 19 : letters[i].y - 1;
+					for (int j = 0; j < letters.size(); j++)
+					{
+						if (i == j)
+							continue;
+						if (letters[i].x == letters[j].x && letters[i].y == letters[j].y)
+						{
+							int a, b;
+							a = 0;
+							b = 0;
+							if (letters[i].isNum && letters[j].isNum)
+							{
+								for (int k = 0; k < lstrlen(letters[i].letter); k++)
+								{
+									a *= 10;
+									a += letters[i].letter[k] - 48;
+								}
+								for (int k = 0; k < lstrlen(letters[j].letter); k++)
+								{
+									b *= 10;
+									b += letters[j].letter[k] - 48;
+								}
+								wsprintf(letters[i].letter, L"%d", a + b);
+							}
+							else if (letters[i].isNum)
+							{
+								for (int k = 0; k < lstrlen(letters[i].letter); k++)
+								{
+									a *= 10;
+									a += letters[i].letter[k] - 48;
+								}
+								b = letters[j].letter[0] - 96;
+								b = (a + b - 1) % 26 + 1;
+								wsprintf(letters[i].letter, L"%c", b + 96);
+							}
+							else if (letters[j].isNum)
+							{
+								a = letters[i].letter[0] - 96;
+								for (int k = 0; k < lstrlen(letters[j].letter); k++)
+								{
+									b *= 10;
+									b += letters[j].letter[k] - 48;
+								}
+								a = (a + b - 1) % 26 + 1;
+								wsprintf(letters[i].letter, L"%c", a + 96);
+							}
+							else
+							{
+								a = letters[i].letter[0] - 96;
+								b = letters[j].letter[0] - 96;
+								a = (a + b - 1) % 26 + 1;
+								wsprintf(letters[i].letter, L"%c", a + 96);
+							}
+							letters.erase(letters.begin() + j);
+						}
+					}
 				}
 			}
 			InvalidateRect(hWnd, NULL, TRUE);
@@ -175,17 +232,52 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 							int a, b;
 							a = 0;
 							b = 0;
-							for (int k = 0; k < lstrlen(letters[i].letter); k++)
+							if (letters[i].isNum && letters[j].isNum)
 							{
-								a *= 10;
-								a += letters[i].letter[k] - 48;
+								for (int k = 0; k < lstrlen(letters[i].letter); k++)
+								{
+									a *= 10;
+									a += letters[i].letter[k] - 48;
+								}
+								for (int k = 0; k < lstrlen(letters[j].letter); k++)
+								{
+									b *= 10;
+									b += letters[j].letter[k] - 48;
+								}
+								wsprintf(letters[i].letter, L"%d", a + b);
 							}
-							for (int k = 0; k < lstrlen(letters[i].letter); k++)
+							else if (letters[i].isNum)
 							{
-								b *= 10;
-								b += letters[j].letter[k] - 48;
+								for (int k = 0; k < lstrlen(letters[i].letter); k++)
+								{
+									a *= 10;
+									a += letters[i].letter[k] - 48;
+								}
+								b = letters[j].letter[0] - 96;
+								b = (a + b - 1) % 26 + 1;
+								wsprintf(letters[i].letter, L"%c", b + 96);
+								letters[i].isNum = false;
 							}
-							wsprintf(letters[i].letter, L"%d", a + b);
+							else if (letters[j].isNum)
+							{
+								a = letters[i].letter[0] - 96;
+								for (int k = 0; k < lstrlen(letters[j].letter); k++)
+								{
+									b *= 10;
+									b += letters[j].letter[k] - 48;
+								}
+								a = (a + b - 1) % 26 + 1;
+								wsprintf(letters[i].letter, L"%c", a + 96);
+								letters[i].isNum = false;
+							}
+							else
+							{
+								a = letters[i].letter[0] - 96;
+								b = letters[j].letter[0] - 96;
+								a = (a + b - 1) % 26 + 1;
+								wsprintf(letters[i].letter, L"%c", a + 96);
+								letters[i].isNum = false;
+							}
 							letters.erase(letters.begin() + j);
 						}
 					}
@@ -201,6 +293,61 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				if (player.x == letters[i].x && player.y == letters[i].y)
 				{
 					letters[i].x = letters[i].x == 0 ? 19 : letters[i].x - 1;
+					for (int j = 0; j < letters.size(); j++)
+					{
+						if (i == j)
+							continue;
+						if (letters[i].x == letters[j].x && letters[i].y == letters[j].y)
+						{
+							int a, b;
+							a = 0;
+							b = 0;
+							if (letters[i].isNum && letters[j].isNum)
+							{
+								for (int k = 0; k < lstrlen(letters[i].letter); k++)
+								{
+									a *= 10;
+									a += letters[i].letter[k] - 48;
+								}
+								for (int k = 0; k < lstrlen(letters[j].letter); k++)
+								{
+									b *= 10;
+									b += letters[j].letter[k] - 48;
+								}
+								wsprintf(letters[i].letter, L"%d", a + b);
+							}
+							else if (letters[i].isNum)
+							{
+								for (int k = 0; k < lstrlen(letters[i].letter); k++)
+								{
+									a *= 10;
+									a += letters[i].letter[k] - 48;
+								}
+								b = letters[j].letter[0] - 96;
+								b = (a + b - 1) % 26 + 1;
+								wsprintf(letters[i].letter, L"%c", b + 96);
+							}
+							else if (letters[j].isNum)
+							{
+								a = letters[i].letter[0] - 96;
+								for (int k = 0; k < lstrlen(letters[j].letter); k++)
+								{
+									b *= 10;
+									b += letters[j].letter[k] - 48;
+								}
+								a = (a + b - 1) % 26 + 1;
+								wsprintf(letters[i].letter, L"%c", a + 96);
+							}
+							else
+							{
+								a = letters[i].letter[0] - 96;
+								b = letters[j].letter[0] - 96;
+								a = (a + b - 1) % 26 + 1;
+								wsprintf(letters[i].letter, L"%c", a + 96);
+							}
+							letters.erase(letters.begin() + j);
+						}
+					}
 				}
 			}
 			InvalidateRect(hWnd, NULL, TRUE);
@@ -213,6 +360,61 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				if (player.x == letters[i].x && player.y == letters[i].y)
 				{
 					letters[i].x = letters[i].x == 19 ? 0 : letters[i].x + 1;
+					for (int j = 0; j < letters.size(); j++)
+					{
+						if (i == j)
+							continue;
+						if (letters[i].x == letters[j].x && letters[i].y == letters[j].y)
+						{
+							int a, b;
+							a = 0;
+							b = 0;
+							if (letters[i].isNum && letters[j].isNum)
+							{
+								for (int k = 0; k < lstrlen(letters[i].letter); k++)
+								{
+									a *= 10;
+									a += letters[i].letter[k] - 48;
+								}
+								for (int k = 0; k < lstrlen(letters[j].letter); k++)
+								{
+									b *= 10;
+									b += letters[j].letter[k] - 48;
+								}
+								wsprintf(letters[i].letter, L"%d", a + b);
+							}
+							else if (letters[i].isNum)
+							{
+								for (int k = 0; k < lstrlen(letters[i].letter); k++)
+								{
+									a *= 10;
+									a += letters[i].letter[k] - 48;
+								}
+								b = letters[j].letter[0] - 96;
+								b = (a + b - 1) % 26 + 1;
+								wsprintf(letters[i].letter, L"%c", b + 96);
+							}
+							else if (letters[j].isNum)
+							{
+								a = letters[i].letter[0] - 96;
+								for (int k = 0; k < lstrlen(letters[j].letter); k++)
+								{
+									b *= 10;
+									b += letters[j].letter[k] - 48;
+								}
+								a = (a + b - 1) % 26 + 1;
+								wsprintf(letters[i].letter, L"%c", a + 96);
+							}
+							else
+							{
+								a = letters[i].letter[0] - 96;
+								b = letters[j].letter[0] - 96;
+								a = (a + b - 1) % 26 + 1;
+								wsprintf(letters[i].letter, L"%c", a + 96);
+							}
+							letters.erase(letters.begin() + j);
+						}
+					}
 				}
 			}
 			InvalidateRect(hWnd, NULL, TRUE);
@@ -223,6 +425,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			if (mode == 0)
 				break;
 			mode = 0;
+			player.x = 9;
+			player.y = 19;
 			letters.clear();
 			for (int i = 0; i < 10; i++)
 			{
@@ -243,8 +447,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				if (flag)
 					continue;
 
-				letters.push_back(Letter(tempX, tempY, L""));
+				TCHAR tempLetter[10];
+				wsprintf(tempLetter, L"%d", i);
+				letters.push_back(Letter(tempX, tempY, tempLetter, true));
 			}
+			InvalidateRect(hWnd, NULL, TRUE);
 		}
 
 		else if (wParam == '2')
@@ -252,6 +459,33 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			if (mode == 1)
 				break;
 			mode = 1;
+			player.x = 9;
+			player.y = 19;
+			letters.clear();
+			for (int i = 0; i < 26; i++)
+			{
+				int tempX, tempY;
+				bool flag = false;
+				tempX = rand() % 20;
+				tempY = rand() % 20;
+
+				for (int j = 0; j < letters.size(); j++)
+				{
+					if ((letters[j].x == tempX && letters[j].y == tempY) || (letters[j].x == 9 && letters[j].y == 19))
+					{
+						i--;
+						flag = true;
+						break;
+					}
+				}
+				if (flag)
+					continue;
+
+				TCHAR tempLetter[10];
+				wsprintf(tempLetter, L"%c", i + 97);
+				letters.push_back(Letter(tempX, tempY, tempLetter, false));
+			}
+			InvalidateRect(hWnd, NULL, TRUE);
 		}
 
 		else if (wParam == '3')
@@ -259,6 +493,56 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			if (mode == 2)
 				break;
 			mode = 2;
+			player.x = 9;
+			player.y = 19;
+			letters.clear();
+			for (int i = 0; i < 10; i++)
+			{
+				int tempX, tempY;
+				bool flag = false;
+				tempX = rand() % 20;
+				tempY = rand() % 20;
+
+				for (int j = 0; j < letters.size(); j++)
+				{
+					if ((letters[j].x == tempX && letters[j].y == tempY) || (letters[j].x == 9 && letters[j].y == 19))
+					{
+						i--;
+						flag = true;
+						break;
+					}
+				}
+				if (flag)
+					continue;
+
+				TCHAR tempLetter[10];
+				wsprintf(tempLetter, L"%d", i);
+				letters.push_back(Letter(tempX, tempY, tempLetter, true));
+			}
+			for (int i = 0; i < 26; i++)
+			{
+				int tempX, tempY;
+				bool flag = false;
+				tempX = rand() % 20;
+				tempY = rand() % 20;
+
+				for (int j = 0; j < letters.size(); j++)
+				{
+					if ((letters[j].x == tempX && letters[j].y == tempY) || (letters[j].x == 9 && letters[j].y == 19))
+					{
+						i--;
+						flag = true;
+						break;
+					}
+				}
+				if (flag)
+					continue;
+
+				TCHAR tempLetter[10];
+				wsprintf(tempLetter, L"%c", i + 97);
+				letters.push_back(Letter(tempX, tempY, tempLetter, false));
+			}
+			InvalidateRect(hWnd, NULL, TRUE);
 		}
 
 		else if (wParam == 'p')
@@ -266,6 +550,59 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			letters.clear();
 			player.x = 9;
 			player.y = 19;
+
+			if (mode == 0 || mode == 2)
+			{
+				for (int i = 0; i < 10; i++)
+				{
+					int tempX, tempY;
+					bool flag = false;
+					tempX = rand() % 20;
+					tempY = rand() % 20;
+
+					for (int j = 0; j < letters.size(); j++)
+					{
+						if ((letters[j].x == tempX && letters[j].y == tempY) || (letters[j].x == 9 && letters[j].y == 19))
+						{
+							i--;
+							flag = true;
+							break;
+						}
+					}
+					if (flag)
+						continue;
+
+					TCHAR tempLetter[10];
+					wsprintf(tempLetter, L"%d", i);
+					letters.push_back(Letter(tempX, tempY, tempLetter, true));
+				}
+			}
+			if (mode == 1 || mode == 2)
+			{
+				for (int i = 0; i < 26; i++)
+				{
+					int tempX, tempY;
+					bool flag = false;
+					tempX = rand() % 20;
+					tempY = rand() % 20;
+
+					for (int j = 0; j < letters.size(); j++)
+					{
+						if ((letters[j].x == tempX && letters[j].y == tempY) || (letters[j].x == 9 && letters[j].y == 19))
+						{
+							i--;
+							flag = true;
+							break;
+						}
+					}
+					if (flag)
+						continue;
+
+					TCHAR tempLetter[10];
+					wsprintf(tempLetter, L"%c", i + 97);
+					letters.push_back(Letter(tempX, tempY, tempLetter, false));
+				}
+			}
 
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
