@@ -145,8 +145,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			int shapeSize;
 			shapeSize = rectLen - (2 - shapeQueue[i].size) * 2;
 
-			switch (shapeQueue[i].shapeIdx)
+			if (!isChanged)
 			{
+				switch (shapeQueue[i].shapeIdx)
+				{
 				case 0:
 					hBrush = CreateSolidBrush(baseColors[shapeQueue[i].colorIdx]);
 					oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
@@ -169,6 +171,58 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 					Rectangle(hDC, shapeQueue[i].x * rectLen + (2 - shapeQueue[i].size) * 2, shapeQueue[i].y * rectLen + (2 - shapeQueue[i].size) * 2, (shapeQueue[i].x + 1) * rectLen - (2 - shapeQueue[i].size) * 2, (shapeQueue[i].y + 1) * rectLen - (2 - shapeQueue[i].size) * 2);
 					break;
+				}
+			}
+			else
+			{
+				switch (shapeQueue[i].colorIdx)
+				{
+				case 0:
+					hBrush = CreateSolidBrush(baseColors[shapeQueue[i].colorIdx]);
+					oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+					POINT diaPoints[4];
+					diaPoints[0] = { shapeQueue[i].x * rectLen + rectLen / 2, shapeQueue[i].y * rectLen + (2 - shapeQueue[i].size) * 2 };
+					diaPoints[1] = { (shapeQueue[i].x + 1) * rectLen - (2 - shapeQueue[i].size) * 2, shapeQueue[i].y * rectLen + rectLen / 2 };
+					diaPoints[2] = { shapeQueue[i].x * rectLen + rectLen / 2, (shapeQueue[i].y + 1) * rectLen - (2 - shapeQueue[i].size) * 2 };
+					diaPoints[3] = { shapeQueue[i].x * rectLen + (2 - shapeQueue[i].size) * 2, shapeQueue[i].y * rectLen + rectLen / 2 };
+					Polygon(hDC, diaPoints, 4);
+					break;
+				case 1:
+					hBrush = CreateSolidBrush(baseColors[shapeQueue[i].colorIdx]);
+					oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+					POINT triPoints[3];
+					triPoints[0] = { shapeQueue[i].x * rectLen + rectLen / 2, (shapeQueue[i].y + 1) * rectLen - (2 - shapeQueue[i].size) * 2 };
+					triPoints[1] = { (shapeQueue[i].x + 1) * rectLen - (2 - shapeQueue[i].size) * 2, shapeQueue[i].y * rectLen + (2 - shapeQueue[i].size) * 2 };
+					triPoints[2] = { shapeQueue[i].x * rectLen + (2 - shapeQueue[i].size) * 2, shapeQueue[i].y * rectLen + (2 - shapeQueue[i].size) * 2 };
+					Polygon(hDC, triPoints, 3);
+					break;
+				case 2:
+					hBrush = CreateSolidBrush(baseColors[shapeQueue[i].colorIdx]);
+					oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+					POINT pentaPoints[5];
+					pentaPoints[0] = { shapeQueue[i].x * rectLen + rectLen / 2, shapeQueue[i].y * rectLen + (2 - shapeQueue[i].size) * 2 };
+					pentaPoints[1] = { (shapeQueue[i].x + 1) * rectLen - (2 - shapeQueue[i].size) * 2, shapeQueue[i].y * rectLen + rectLen / 5 * 2 };
+					pentaPoints[2] = { shapeQueue[i].x * rectLen + rectLen / 5 * 4, (shapeQueue[i].y + 1) * rectLen - (2 - shapeQueue[i].size) * 2 };
+					pentaPoints[3] = { shapeQueue[i].x * rectLen + rectLen / 5, (shapeQueue[i].y + 1) * rectLen - (2 - shapeQueue[i].size) * 2 };
+					pentaPoints[4] = { shapeQueue[i].x * rectLen + (2 - shapeQueue[i].size) * 2, shapeQueue[i].y * rectLen + rectLen / 5 * 2 };
+					Polygon(hDC, pentaPoints, 5);
+					break;
+				case 3:
+					hBrush = CreateSolidBrush(baseColors[shapeQueue[i].colorIdx]);
+					oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+					POINT startPoints[5];
+					startPoints[0] = { shapeQueue[i].x * rectLen + rectLen / 2, shapeQueue[i].y * rectLen + (2 - shapeQueue[i].size) * 2 };
+					startPoints[1] = { shapeQueue[i].x * rectLen + rectLen / 5, (shapeQueue[i].y + 1) * rectLen - (2 - shapeQueue[i].size) * 2 };
+					startPoints[2] = { (shapeQueue[i].x + 1) * rectLen - (2 - shapeQueue[i].size) * 2, shapeQueue[i].y * rectLen + rectLen / 5 * 2 };
+					startPoints[3] = { shapeQueue[i].x * rectLen + (2 - shapeQueue[i].size) * 2, shapeQueue[i].y * rectLen + rectLen / 5 * 2 };
+					startPoints[4] = { shapeQueue[i].x * rectLen + rectLen / 5 * 4, (shapeQueue[i].y + 1) * rectLen - (2 - shapeQueue[i].size) * 2 };
+					Polygon(hDC, startPoints, 5);
+					break;
+				}
 			}
 			SelectObject(hDC, oldBrush);
 			DeleteObject(hBrush);
@@ -300,6 +354,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			shapeQueue.erase(shapeQueue.begin() + selectedIdx);
 			selectedIdx = -1;
 			selectedShape = { -1, -1, 0, -1, -1 };
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == 'c')
+		{
+			isChanged = !isChanged;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == 'p')
