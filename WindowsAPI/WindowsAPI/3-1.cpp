@@ -21,14 +21,26 @@ public :
 	Direction moveDir;
 	COLORREF color;
 	bool isHead;
+	int moveType;
 	Player(int x, int y, Direction moveDir, COLORREF color, bool isHead){
 		this->x = x;
 		this->y = y;
 		this->moveDir = moveDir;
 		this->color = color;
 		this->isHead = isHead;
+		this->moveType = -1;
+	}
+	Player(int x, int y, Direction moveDir, COLORREF color, bool isHead, int moveType) {
+		this->x = x;
+		this->y = y;
+		this->moveDir = moveDir;
+		this->color = color;
+		this->isHead = isHead;
+		this->moveType = moveType;
 	}
 };
+
+
 
 class Food {
 public:
@@ -137,8 +149,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 				tempY = rand() % 40;
 
 				bool flag = false;
-				for (int j = 0; j < tailQueue.size(); j++) {
-					if ((tempX == 0 && tempY == 0) || (tempX == tailQueue[j].x && tempY == tailQueue[j].y))
+				for (int j = 0; j < foodQueue.size(); j++) {
+					if ((tempX == 0 && tempY == 0) || (tempX == foodQueue[j].x && tempY == foodQueue[j].y))
 						flag = true;
 				}
 				if (flag) {
@@ -147,7 +159,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 				}
 					
 				foodQueue.push_back(Food(tempX, tempY, reverseColors[i + 1]));
-				tailQueue.push_back(Player(tempX, tempY, Direction::None, reverseColors[i + 1], false));
 			}
 			moveSpeed = 100;
 			autoMoveOffset = 1;
@@ -213,6 +224,130 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 			SetROP2(hDC, R2_XORPEN);
 			hPen = (HPEN)GetStockObject(BLACK_PEN);
 			SelectObject(hDC, hPen);
+
+			for (int i = 0; i < tailQueue.size(); i++) {
+				hBrush = CreateSolidBrush(tailQueue[i].color);
+				oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+				Ellipse(hDC, tailQueue[i].x * 20 + 1, tailQueue[i].y * 20 + 1, (tailQueue[i].x + 1) * 20 - 1, (tailQueue[i].y + 1) * 20 - 1);
+
+				switch (tailQueue[i].moveType) {
+					case 0: {
+						if (tailQueue[i].moveDir == None) {
+							tailQueue[i].moveDir = tailQueue[i].y == 0 ? Down : Up;
+						}
+						if (tailQueue[i].moveDir == Up) {
+							if (tailQueue[i].y == 0) {
+								tailQueue[i].y += 1;
+								tailQueue[i].moveDir = Down;
+							}
+							else {
+								tailQueue[i].y -= 1;
+							}
+						}
+						else if (tailQueue[i].moveDir == Down) {
+							if (tailQueue[i].y == 39) {
+								tailQueue[i].y -= 1;
+								tailQueue[i].moveDir = Up;
+							}
+							else {
+								tailQueue[i].y += 1;
+							}
+						}
+
+						break;
+					}
+					case 1: {
+						if (tailQueue[i].moveDir == None) {
+							tailQueue[i].moveDir = tailQueue[i].x == 0 ? Right : Left;
+						}
+						if (tailQueue[i].moveDir == Right) {
+							if (tailQueue[i].x == 0) {
+								tailQueue[i].x += 1;
+								tailQueue[i].moveDir = Left;
+							}
+							else {
+								tailQueue[i].x -= 1;
+							}
+						}
+						else if (tailQueue[i].moveDir == Left) {
+							if (tailQueue[i].x == 39) {
+								tailQueue[i].x -= 1;
+								tailQueue[i].moveDir = Right;
+							}
+							else {
+								tailQueue[i].x += 1;
+							}
+						}
+
+						break;
+					}
+					case 2: {
+						if (tailQueue[i].moveDir == None) {
+							if (tailQueue[i].x == 0) {
+								if (tailQueue[i].y == 39)
+									tailQueue[i].moveDir = Up;
+								else
+									tailQueue[i].moveDir = Right;
+							}
+							else if (tailQueue[i].y == 0) {
+								if (tailQueue[i].x == 39)
+									tailQueue[i].moveDir = Down;
+								else
+									tailQueue[i].moveDir = Right;
+							}
+							else if (tailQueue[i].x == 39) {
+								if (tailQueue[i].y == 0)
+									tailQueue[i].moveDir = Down;
+								else
+									tailQueue[i].moveDir = Left;
+							}
+							else if (tailQueue[i].y == 39) {
+								if (tailQueue[i].x == 0)
+									tailQueue[i].moveDir = Up;
+								else
+									tailQueue[i].moveDir = Left;
+							}
+							else {
+								tailQueue[i].moveDir = Right;
+							}
+						}
+						if (tailQueue[i].moveDir == Right) {
+							tailQueue[i].x += 1;
+							tailQueue[i].moveDir = Down;
+						}
+						else if (tailQueue[i].moveDir == Down) {
+							tailQueue[i].y += 1;
+							tailQueue[i].moveDir = Left;
+						}
+						else if (tailQueue[i].moveDir == Left) {
+							tailQueue[i].x -= 1;
+							tailQueue[i].moveDir = Up;
+						}
+						else if (tailQueue[i].moveDir == Up) {
+							tailQueue[i].y -= 1;
+							tailQueue[i].moveDir = Right;
+						}
+
+						break;
+					}
+				}
+
+				if (snakeQueue[0].x == tailQueue[i].x && snakeQueue[0].y == tailQueue[i].y) {
+					snakeQueue.push_back(Player(tailQueue[i].x, tailQueue[i].y, None, tailQueue[i].color, false));
+
+					Ellipse(hDC, tailQueue[i].x * 20 + 1, tailQueue[i].y * 20 + 1, (tailQueue[i].x + 1) * 20 - 1, (tailQueue[i].y + 1) * 20 - 1);
+
+					DeleteObject(oldBrush);
+
+					tailQueue.erase(tailQueue.begin() + i);
+					continue;
+				}
+
+				Ellipse(hDC, tailQueue[i].x * 20 + 1, tailQueue[i].y * 20 + 1, (tailQueue[i].x + 1) * 20 - 1, (tailQueue[i].y + 1) * 20 - 1);
+
+				DeleteObject(oldBrush);
+			}
 
 			for (int i = snakeQueue.size() - 1; i >= 1; i--) {
 				hBrush = CreateSolidBrush(snakeQueue[i].color);
@@ -338,19 +473,34 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 					break;
 			}
 
-			for (int i = 0; i < foodQueue.size(); i++) {
-				if (snakeQueue[0].x == foodQueue[i].x && snakeQueue[0].y == foodQueue[i].y) {
-					snakeQueue.push_back(Player(tailQueue[i].x, tailQueue[i].y, Direction::None, tailQueue[i].color, false));
+			for (int i = 0; i < tailQueue.size(); i++) {
+				if (snakeQueue[0].x == tailQueue[i].x && snakeQueue[0].y == tailQueue[i].y) {
+					snakeQueue.push_back(Player(tailQueue[i].x, tailQueue[i].y, None, tailQueue[i].color, false));
 
 					hBrush = CreateSolidBrush(tailQueue[i].color);
 					oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
 
-					Rectangle(hDC, foodQueue[i].x * 20 + 4, foodQueue[i].y * 20 + 4, (foodQueue[i].x + 1) * 20 - 3, (foodQueue[i].y + 1) * 20 - 3);
+					Ellipse(hDC, tailQueue[i].x * 20 + 1, tailQueue[i].y * 20 + 1, (tailQueue[i].x + 1) * 20 - 1, (tailQueue[i].y + 1) * 20 - 1);
 
 					DeleteObject(oldBrush);
 
-					foodQueue.erase(foodQueue.begin() + i);
 					tailQueue.erase(tailQueue.begin() + i);
+					break;
+				}
+			}
+
+			for (int i = 0; i < foodQueue.size(); i++) {
+				if (snakeQueue[0].x == foodQueue[i].x && snakeQueue[0].y == foodQueue[i].y) {
+					hBrush = CreateSolidBrush(foodQueue[i].color);
+					oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+					Rectangle(hDC, foodQueue[i].x * 20 + 4, foodQueue[i].y * 20 + 4, (foodQueue[i].x + 1) * 20 - 3, (foodQueue[i].y + 1) * 20 - 3);
+					Ellipse(hDC, foodQueue[i].x * 20 + 1, foodQueue[i].y * 20 + 1, (foodQueue[i].x + 1) * 20 - 1, (foodQueue[i].y + 1) * 20 - 1);
+
+					DeleteObject(oldBrush);
+
+					tailQueue.push_back(Player(foodQueue[i].x, foodQueue[i].y, None, foodQueue[i].color, false, rand() % 4));
+					foodQueue.erase(foodQueue.begin() + i);
 					break;
 				}
 			}
@@ -442,6 +592,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
 		case WM_CHAR:
 			srand((unsigned int)time(NULL));
+			hDC = GetDC(hWnd);
 
 			if (wParam == '+') {
 				if (moveSpeed == 50)
@@ -461,10 +612,41 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 				SetTimer(hWnd, 1, moveSpeed, NULL);
 				isGameStarted = true;
 			}
+			else if (wParam == 't') {
+				SetROP2(hDC, R2_XORPEN);
+				for (int i = 0; i < snakeQueue.size(); i++) {
+					hBrush = CreateSolidBrush(snakeQueue[i].color);
+					oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+					Ellipse(hDC, snakeQueue[i].x * 20 + 1, snakeQueue[i].y * 20 + 1, (snakeQueue[i].x + 1) * 20 - 1, (snakeQueue[i].y + 1) * 20 - 1);
+
+					DeleteObject(oldBrush);
+				}
+				COLORREF tempColor = snakeQueue[0].color;
+				for (int i = 0; i < snakeQueue.size() - 1; i++) {
+					snakeQueue[i].color = snakeQueue[i + 1].color;
+
+					hBrush = CreateSolidBrush(snakeQueue[i].color);
+					oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+					Ellipse(hDC, snakeQueue[i].x * 20 + 1, snakeQueue[i].y * 20 + 1, (snakeQueue[i].x + 1) * 20 - 1, (snakeQueue[i].y + 1) * 20 - 1);
+
+					DeleteObject(oldBrush);
+				}
+				snakeQueue[snakeQueue.size() - 1].color = tempColor;
+
+				hBrush = CreateSolidBrush(snakeQueue[snakeQueue.size() - 1].color);
+				oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+				Ellipse(hDC, snakeQueue[snakeQueue.size() - 1].x * 20 + 1, snakeQueue[snakeQueue.size() - 1].y * 20 + 1, (snakeQueue[snakeQueue.size() - 1].x + 1) * 20 - 1, (snakeQueue[snakeQueue.size() - 1].y + 1) * 20 - 1);
+
+				DeleteObject(oldBrush);
+			}
 			else if (wParam == 'q') {
 				PostQuitMessage(0);
 			}
 
+			ReleaseDC(hWnd, hDC);
 			break;
 
 		case WM_DESTROY:
