@@ -56,6 +56,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	static POINT pivot, mousePoint;
 	static int selectedNum;
 	static bool isStarted;
+	static int paintMethod;
+	static int privatePivot[4];
 
 	switch (uMsg) {
 	case WM_CREATE:
@@ -64,6 +66,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		pivot.y = rt.bottom;
 		selectedNum = 0;
 		isStarted = false;
+		paintMethod = SRCCOPY;
+		privatePivot[0] = 0;
+		privatePivot[1] = 0;
+		privatePivot[2] = 0;
+		privatePivot[3] = 0;
+		hBitmap = (HBITMAP)LoadBitmap(g_hInst, MAKEINTRESOURCE(IDB_BITMAP1));
 		break;
 
 	case WM_PAINT:
@@ -73,35 +81,47 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		SelectObject(mDC, hBitmap);
 		GetObject(hBitmap, sizeof(BITMAP), &bmp);
 
-		StretchBlt(hDC, 0, 0, pivot.x, pivot.y, mDC, 0, 0, bmp.bmWidth, bmp.bmHeight, SRCCOPY);
-		StretchBlt(hDC, pivot.x, 0, rt.right - pivot.x, pivot.y, mDC, 0, 0, bmp.bmWidth, bmp.bmHeight, SRCCOPY);
-		StretchBlt(hDC, 0, pivot.y, pivot.x, rt.bottom - pivot.y, mDC, 0, 0, bmp.bmWidth, bmp.bmHeight, SRCCOPY);
-		StretchBlt(hDC, pivot.x, pivot.y, rt.right - pivot.x, rt.bottom - pivot.y, mDC, 0, 0, bmp.bmWidth, bmp.bmHeight, SRCCOPY);
+		if (isStarted) {
+			StretchBlt(hDC, privatePivot[0], 0, pivot.x - privatePivot[0], pivot.y, mDC, 0, 0, ((pivot.x - privatePivot[0]) / (float)pivot.x * bmp.bmWidth), bmp.bmHeight, paintMethod);
+			StretchBlt(hDC, 0, 0, privatePivot[0], pivot.y, mDC, (pivot.x - privatePivot[0]) / (float)pivot.x * bmp.bmWidth, 0, bmp.bmWidth - ((pivot.x - privatePivot[0]) / (float)pivot.x * bmp.bmWidth), bmp.bmHeight, paintMethod);
 
-		hPen = CreatePen(PS_SOLID, 5, RGB(255, 0, 0));
-		oldPen = (HPEN)SelectObject(hDC, hPen);
-		hBrush = (HBRUSH)GetStockObject(NULL_BRUSH);
-		oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+			StretchBlt(hDC, pivot.x + privatePivot[1], 0, rt.right - pivot.x - privatePivot[1], pivot.y, mDC, 0, 0, ((rt.right - pivot.x - privatePivot[1]) / (float)(rt.right - pivot.x) * bmp.bmWidth), bmp.bmHeight, paintMethod);
+			StretchBlt(hDC, pivot.x, 0, privatePivot[1], pivot.y, mDC, (rt.right - pivot.x - privatePivot[1]) / (float)(rt.right - pivot.x) * bmp.bmWidth, 0, bmp.bmWidth - ((rt.right - pivot.x - privatePivot[1]) / (float)(rt.right - pivot.x) * bmp.bmWidth), bmp.bmHeight, paintMethod);
 
-		switch (selectedNum) {
-		case 1:
-			Rectangle(hDC, 0, 0, pivot.x, pivot.y);
-			break;
-		case 2:
-			Rectangle(hDC, pivot.x, 0, rt.right, pivot.y);
-			break;
-		case 3:
-			Rectangle(hDC, 0, pivot.y, pivot.x, rt.bottom);
-			break;
-		case 4:
-			Rectangle(hDC, pivot.x, pivot.y, rt.right, rt.bottom);
-			break;
+			StretchBlt(hDC, privatePivot[2], pivot.y, pivot.x - privatePivot[2], rt.bottom - pivot.y, mDC, 0, 0, ((pivot.x - privatePivot[2]) / (float)pivot.x * bmp.bmWidth), bmp.bmHeight, paintMethod);
+			StretchBlt(hDC, 0, pivot.y, privatePivot[2], rt.bottom - pivot.y, mDC, (pivot.x - privatePivot[2]) / (float)pivot.x * bmp.bmWidth, 0, bmp.bmWidth - ((pivot.x - privatePivot[2]) / (float)pivot.x * bmp.bmWidth), bmp.bmHeight, paintMethod);
+
+			StretchBlt(hDC, pivot.x + privatePivot[3], pivot.y, rt.right - pivot.x - privatePivot[3], rt.bottom - pivot.y, mDC, 0, 0, ((rt.right - pivot.x - privatePivot[3]) / (float)(rt.right - pivot.x) * bmp.bmWidth), bmp.bmHeight, paintMethod);
+			StretchBlt(hDC, pivot.x, pivot.y, privatePivot[3], rt.bottom - pivot.y, mDC, (rt.right - pivot.x - privatePivot[3]) / (float)(rt.right - pivot.x) * bmp.bmWidth, 0, bmp.bmWidth - ((rt.right - pivot.x - privatePivot[3]) / (float)(rt.right - pivot.x) * bmp.bmWidth), bmp.bmHeight, paintMethod);
+
+			hPen = CreatePen(PS_SOLID, 5, RGB(255, 0, 0));
+			oldPen = (HPEN)SelectObject(hDC, hPen);
+			hBrush = (HBRUSH)GetStockObject(NULL_BRUSH);
+			oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+			switch (selectedNum) {
+			case 1:
+				Rectangle(hDC, 0, 0, pivot.x, pivot.y);
+				break;
+			case 2:
+				Rectangle(hDC, pivot.x, 0, rt.right, pivot.y);
+				break;
+			case 3:
+				Rectangle(hDC, 0, pivot.y, pivot.x, rt.bottom);
+				break;
+			case 4:
+				Rectangle(hDC, pivot.x, pivot.y, rt.right, rt.bottom);
+				break;
+			}
+
+			SelectObject(hDC, oldPen);
+			DeleteObject(hPen);
+			SelectObject(hDC, oldBrush);
+			DeleteObject(hBrush);
 		}
-
-		SelectObject(hDC, oldPen);
-		DeleteObject(hPen);
-		SelectObject(hDC, oldBrush);
-		DeleteObject(hBrush);
+		else {
+			StretchBlt(hDC, 0, 0, 400, 300, mDC, 0, 0, bmp.bmWidth, bmp.bmHeight, paintMethod);
+		}
 
 		DeleteDC(mDC);
 		EndPaint(hWnd, &ps);
@@ -114,7 +134,101 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		break;
 
 	case WM_KEYDOWN:
-
+		GetClientRect(hWnd, &rt);
+		if (wParam == VK_LEFT) {
+			switch (selectedNum) {
+				case 1:
+					privatePivot[0] -= 5;
+					if (privatePivot[0] < 0) {
+						privatePivot[0] += pivot.x;
+					}
+					break;
+				case 2:
+					privatePivot[1] -= 5;
+					if (privatePivot[1] < 0) {
+						privatePivot[1] += rt.right - pivot.x;
+					}
+					break;
+				case 3:
+					privatePivot[2] -= 5;
+					if (privatePivot[2] < 0) {
+						privatePivot[2] += pivot.x;
+					}
+					break;
+				case 4:
+					privatePivot[3] -= 5;
+					if (privatePivot[3] < 0) {
+						privatePivot[3] += rt.right - pivot.x;
+					}
+					break;
+				case 5:
+					privatePivot[0] -= 5;
+					if (privatePivot[0] < 0) {
+						privatePivot[0] += pivot.x;
+					}
+					privatePivot[1] -= 5;
+					if (privatePivot[1] < 0) {
+						privatePivot[1] += rt.right - pivot.x;
+					}
+					privatePivot[2] -= 5;
+					if (privatePivot[2] < 0) {
+						privatePivot[2] += pivot.x;
+					}
+					privatePivot[3] -= 5;
+					if (privatePivot[3] < 0) {
+						privatePivot[3] += rt.right - pivot.x;
+					}
+					break;
+			}
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		else if (wParam == VK_RIGHT) {
+			switch (selectedNum) {
+				case 1:
+					privatePivot[0] += 5;
+					if (privatePivot[0] > pivot.x) {
+						privatePivot[0] -= pivot.x;
+					}
+					break;
+				case 2:
+					privatePivot[1] += 5;
+					if (privatePivot[1] > rt.right - pivot.x) {
+						privatePivot[1] -= rt.right - pivot.x;
+					}
+					break;
+				case 3:
+					privatePivot[2] += 5;
+					if (privatePivot[2] > pivot.x) {
+						privatePivot[2] -= pivot.x;
+					}
+					break;
+				case 4:
+					privatePivot[3] += 5;
+					if (privatePivot[3] > rt.right - pivot.x) {
+						privatePivot[3] -= rt.right - pivot.x;
+					}
+					break;
+				case 5:
+					privatePivot[0] += 5;
+					if (privatePivot[0] > pivot.x) {
+						privatePivot[0] -= pivot.x;
+					}
+					privatePivot[1] += 5;
+					if (privatePivot[1] > rt.right - pivot.x) {
+						privatePivot[1] -= rt.right - pivot.x;
+					}
+					privatePivot[2] += 5;
+					if (privatePivot[2] > pivot.x) {
+						privatePivot[2] -= pivot.x;
+					}
+					privatePivot[3] += 5;
+					if (privatePivot[3] > rt.right - pivot.x) {
+						privatePivot[3] -= rt.right - pivot.x;
+					}
+					break;
+			}
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
 		break;
 
 	case WM_LBUTTONDOWN:
@@ -140,11 +254,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	case WM_CHAR:
 		if (wParam == 'a') {
 			isStarted = true;
-			hBitmap = (HBITMAP)LoadBitmap(g_hInst, MAKEINTRESOURCE(IDB_BITMAP1));
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'r') {
-
+			if (paintMethod == SRCCOPY) {
+				paintMethod = NOTSRCCOPY;
+			}
+			else if (paintMethod == NOTSRCCOPY) {
+				paintMethod = SRCCOPY;
+			}
+			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == '+') {
 			GetClientRect(hWnd, &rt);
@@ -163,14 +282,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'p') {
-
+			selectedNum = 5;
 		}
 		else if (wParam == 's') {
-			hBitmap = NULL;
+			isStarted = false;
 			GetClientRect(hWnd, &rt);
 			pivot.x = rt.right;
 			pivot.y = rt.bottom;
 			selectedNum = 0;
+			paintMethod = SRCCOPY;
+			privatePivot[0] = 0;
+			privatePivot[1] = 0;
+			privatePivot[2] = 0;
+			privatePivot[3] = 0;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == 'q') {
