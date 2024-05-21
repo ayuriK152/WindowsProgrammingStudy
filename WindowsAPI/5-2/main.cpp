@@ -16,6 +16,12 @@ enum Direction {
 	RIGHT
 };
 
+enum Mode {
+	NORMAL,
+	VERTICAL,
+	HORIZONTAL
+};
+
 void CALLBACK MovePiece(HWND hWnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime);
 
 HINSTANCE g_hInst;
@@ -71,6 +77,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	HPEN hPen, oldPen;
 	RECT rt;
 	static POINT mousePoint;
+	static Mode dragMode;
+	static int drawMode;
 	static bool isStarted;
 	static bool isWatchingEntire;
 	static bool isDrag;
@@ -89,6 +97,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		moveOffset.y = 0;
 		targetPiece = -1;
 		moveDir = NONE;
+		dragMode = NORMAL;
+		drawMode = SRCCOPY;
 		hBitmap = (HBITMAP)LoadBitmap(g_hInst, MAKEINTRESOURCE(IDB_BITMAP1));
 		GetObject(hBitmap, sizeof(BITMAP), &bmp);
 		divideCnt = 3;
@@ -169,7 +179,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		}
 
 		if (isWatchingEntire) {
-			StretchBlt(hDC, 0, 0, rt.right, rt.bottom, mDC, 0, 0, bmp.bmWidth, bmp.bmHeight, SRCCOPY);
+			StretchBlt(hDC, 0, 0, rt.right, rt.bottom, mDC, 0, 0, bmp.bmWidth, bmp.bmHeight, drawMode);
 		}
 		else {
 			for (int y = 0; y < divideCnt; y++) {
@@ -177,14 +187,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 					if (pieceNum[x][y] == -1)
 						continue;
 					if (targetPiece != pieceNum[x][y]) {
-						StretchBlt(hDC, x * rt.right / divideCnt, y * rt.bottom / divideCnt, rt.right / divideCnt, rt.bottom / divideCnt, mDC, piecePoints[pieceNum[x][y]].x, piecePoints[pieceNum[x][y]].y, bmp.bmWidth / divideCnt, bmp.bmHeight / divideCnt, SRCCOPY);
+						StretchBlt(hDC, x * rt.right / divideCnt, y * rt.bottom / divideCnt, rt.right / divideCnt, rt.bottom / divideCnt, mDC, piecePoints[pieceNum[x][y]].x, piecePoints[pieceNum[x][y]].y, bmp.bmWidth / divideCnt, bmp.bmHeight / divideCnt, drawMode);
 					}
 					else {
 						StretchBlt(hDC, x * rt.right / divideCnt, y * rt.bottom / divideCnt, rt.right / divideCnt, rt.bottom / divideCnt, mDC, piecePoints[pieceNum[x][y]].x, piecePoints[pieceNum[x][y]].y, bmp.bmWidth / divideCnt, bmp.bmHeight / divideCnt, WHITENESS);
-						StretchBlt(hDC, x * rt.right / divideCnt + moveOffset.x, y * rt.bottom / divideCnt + moveOffset.y, rt.right / divideCnt, rt.bottom / divideCnt, mDC, piecePoints[pieceNum[x][y]].x, piecePoints[pieceNum[x][y]].y, bmp.bmWidth / divideCnt, bmp.bmHeight / divideCnt, SRCCOPY);
+						StretchBlt(hDC, x * rt.right / divideCnt + moveOffset.x, y * rt.bottom / divideCnt + moveOffset.y, rt.right / divideCnt, rt.bottom / divideCnt, mDC, piecePoints[pieceNum[x][y]].x, piecePoints[pieceNum[x][y]].y, bmp.bmWidth / divideCnt, bmp.bmHeight / divideCnt, drawMode);
 					}
 				}
 			}
+		}
+
+		if (dragMode == VERTICAL) {
+			hPen = CreatePen(PS_SOLID, 5, RGB(255, 0, 0));
+			oldPen = (HPEN)SelectObject(hDC, hPen);
+			hBrush = (HBRUSH)GetStockObject(NULL_BRUSH);
+			oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+			for (int x = 0; x < divideCnt; x++) {
+				Rectangle(hDC, x * rt.right / divideCnt, 0, (x + 1) * rt.right / divideCnt, rt.bottom);
+			}
+			SelectObject(hDC, oldPen);
+			DeleteObject(hPen);
+			SelectObject(hDC, oldBrush);
+		}
+		else if (dragMode == HORIZONTAL) {
+			hPen = CreatePen(PS_SOLID, 5, RGB(255, 0, 0));
+			oldPen = (HPEN)SelectObject(hDC, hPen);
+			hBrush = (HBRUSH)GetStockObject(NULL_BRUSH);
+			oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+			for (int y = 0; y < divideCnt; y++) {
+				Rectangle(hDC, 0, y * rt.bottom / divideCnt, rt.right, (y + 1) * rt.bottom / divideCnt);
+			}
+			SelectObject(hDC, oldPen);
+			DeleteObject(hPen);
+			SelectObject(hDC, oldBrush);
 		}
 
 		if (isClear) {
@@ -222,47 +257,105 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		InvalidateRect(hWnd, NULL, FALSE);
 		break;
 
-	case WM_LBUTTONUP:
+	case WM_LBUTTONUP: {
 		isDrag = false;
+		if (dragMode == NORMAL)
+			break;
+		GetClientRect(hWnd, &rt);
+		POINT legacy;
+		legacy.x = mousePoint.x;
+		legacy.y = mousePoint.y;
+		mousePoint.x = LOWORD(lParam);
+		mousePoint.y = HIWORD(lParam);
+
+		int legacyArea = -1, currentArea = -1;
+		if (dragMode == VERTICAL) {
+			for (int x = 0; x < divideCnt; x++) {
+				if (x * rt.right / divideCnt <= legacy.x && (x + 1) * rt.right / divideCnt >= legacy.x) {
+					legacyArea = x;
+					break;
+				}
+			}
+			for (int x = 0; x < divideCnt; x++) {
+				if (x * rt.right / divideCnt <= mousePoint.x && (x + 1) * rt.right / divideCnt >= mousePoint.x) {
+					currentArea = x;
+					break;
+				}
+			}
+		}
+		else if (dragMode == HORIZONTAL) {
+			for (int y = 0; y < divideCnt; y++) {
+				if (y * rt.bottom / divideCnt <= legacy.y && (y + 1) * rt.bottom / divideCnt >= legacy.y) {
+					legacyArea = y;
+					break;
+				}
+			}
+			for (int y = 0; y < divideCnt; y++) {
+				if (y * rt.bottom / divideCnt <= mousePoint.y && (y + 1) * rt.bottom / divideCnt >= mousePoint.y) {
+					currentArea = y;
+					break;
+				}
+			}
+		}
+		if (legacyArea != currentArea && legacyArea != -1 && currentArea != -1) {
+			if (dragMode == VERTICAL) {
+				for (int y = 0; y < divideCnt; y++) {
+					int temp = pieceNum[legacyArea][y];
+					pieceNum[legacyArea][y] = pieceNum[currentArea][y];
+					pieceNum[currentArea][y] = temp;
+				}
+			}
+			else if (dragMode == HORIZONTAL) {
+				for (int x = 0; x < divideCnt; x++) {
+					int temp = pieceNum[x][legacyArea];
+					pieceNum[x][legacyArea] = pieceNum[x][currentArea];
+					pieceNum[x][currentArea] = temp;
+				}
+			}
+		}
+		InvalidateRect(hWnd, NULL, TRUE);
 		break;
+	}
 		
 	case WM_MOUSEMOVE:
-		if (moveDir != NONE || isMoving || isClear)
+		if (isMoving || isClear)
 			break;
 		if (isDrag) {
-			moveDir = abs(mousePoint.x - LOWORD(lParam)) >= abs(mousePoint.y - HIWORD(lParam)) ? (mousePoint.x - LOWORD(lParam) < 0 ? RIGHT : LEFT) : (mousePoint.y - HIWORD(lParam) < 0 ? DOWN : UP);
-			for (int y = 0; y < divideCnt; y++) {
-				for (int x = 0; x < divideCnt; x++) {
-					if (pieceNum[x][y] == -1) {
-						switch (moveDir) {
-						case UP:
-							if (y < divideCnt - 1) {
-								targetPiece = pieceNum[x][y + 1];
-								isMoving = true;
-								SetTimer(hWnd, 0, 5, MovePiece);
+			if (dragMode == NORMAL) {
+				moveDir = abs(mousePoint.x - LOWORD(lParam)) >= abs(mousePoint.y - HIWORD(lParam)) ? (mousePoint.x - LOWORD(lParam) < 0 ? RIGHT : LEFT) : (mousePoint.y - HIWORD(lParam) < 0 ? DOWN : UP);
+				for (int y = 0; y < divideCnt; y++) {
+					for (int x = 0; x < divideCnt; x++) {
+						if (pieceNum[x][y] == -1) {
+							switch (moveDir) {
+							case UP:
+								if (y < divideCnt - 1) {
+									targetPiece = pieceNum[x][y + 1];
+									isMoving = true;
+									SetTimer(hWnd, 0, 5, MovePiece);
+								}
+								break;
+							case DOWN:
+								if (y > 0) {
+									targetPiece = pieceNum[x][y - 1];
+									isMoving = true;
+									SetTimer(hWnd, 0, 5, MovePiece);
+								}
+								break;
+							case LEFT:
+								if (x < divideCnt - 1) {
+									targetPiece = pieceNum[x + 1][y];
+									isMoving = true;
+									SetTimer(hWnd, 0, 5, MovePiece);
+								}
+								break;
+							case RIGHT:
+								if (x > 0) {
+									targetPiece = pieceNum[x - 1][y];
+									isMoving = true;
+									SetTimer(hWnd, 0, 5, MovePiece);
+								}
+								break;
 							}
-							break;
-						case DOWN:
-							if (y > 0) {
-								targetPiece = pieceNum[x][y - 1];
-								isMoving = true;
-								SetTimer(hWnd, 0, 5, MovePiece);
-							}
-							break;
-						case LEFT:
-							if (x < divideCnt - 1) {
-								targetPiece = pieceNum[x + 1][y];
-								isMoving = true;
-								SetTimer(hWnd, 0, 5, MovePiece);
-							}
-							break;
-						case RIGHT:
-							if (x > 0) {
-								targetPiece = pieceNum[x - 1][y];
-								isMoving = true;
-								SetTimer(hWnd, 0, 5, MovePiece);
-							}
-							break;
 						}
 					}
 				}
@@ -272,6 +365,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
 	case WM_CHAR:
 		if (wParam == 's') {
+			if (isStarted)
+				break;
 			isStarted = true;
 			isWatchingEntire = false;
 			InvalidateRect(hWnd, NULL, TRUE);
@@ -281,10 +376,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == 'v') {
-
+			if (dragMode == NORMAL) {
+				dragMode = VERTICAL;
+				InvalidateRect(hWnd, NULL, TRUE);
+			}
+			else {
+				dragMode = NORMAL;
+				InvalidateRect(hWnd, NULL, TRUE);
+			}
 		}
 		else if (wParam == 'h') {
-
+			if (dragMode == NORMAL) {
+				dragMode = HORIZONTAL;
+				InvalidateRect(hWnd, NULL, TRUE);
+			}
+			else {
+				dragMode = NORMAL;
+				InvalidateRect(hWnd, NULL, TRUE);
+			}
 		}
 		else if (wParam == 'q') {
 			DeleteObject(hBitmap);
@@ -295,9 +404,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	case WM_COMMAND: {
 		int command = LOWORD(wParam);
 		if (command == ID_GAME_START) {
-
+			if (isStarted)
+				break;
+			isStarted = true;
+			isWatchingEntire = false;
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (command == ID_GAME_REVERSEPICTURE) {
+			if (drawMode == SRCCOPY) {
+				drawMode = NOTSRCCOPY;
+			}
+			else {
+				drawMode = SRCCOPY;
+			}
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (command == ID_GAME_WATCHBASEPICTURE) {
+			isWatchingEntire = true;
+			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (command == ID_GAME_EXIT) {
+			dragMode = NORMAL;
 			for (int y = 0; y < divideCnt; y++) {
 				for (int x = 0; x < divideCnt; x++) {
 					pieceNum[x][y] = x + y * divideCnt;
@@ -315,6 +442,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 			isDrag = false;
 			isMoving = false;
 			isClear = false;
+			dragMode = NORMAL;
 			moveOffset.x = 0;
 			moveOffset.y = 0;
 			targetPiece = -1;
@@ -349,6 +477,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 			isDrag = false;
 			isMoving = false;
 			isClear = false;
+			dragMode = NORMAL;
 			moveOffset.x = 0;
 			moveOffset.y = 0;
 			targetPiece = -1;
@@ -383,6 +512,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 			isDrag = false;
 			isMoving = false;
 			isClear = false;
+			dragMode = NORMAL;
 			moveOffset.x = 0;
 			moveOffset.y = 0;
 			targetPiece = -1;
@@ -417,6 +547,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 			isDrag = false;
 			isMoving = false;
 			isClear = false;
+			dragMode = NORMAL;
 			moveOffset.x = 0;
 			moveOffset.y = 0;
 			targetPiece = -1;
@@ -452,6 +583,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 			isDrag = false;
 			isMoving = false;
 			isClear = false;
+			dragMode = NORMAL;
 			moveOffset.x = 0;
 			moveOffset.y = 0;
 			targetPiece = -1;
